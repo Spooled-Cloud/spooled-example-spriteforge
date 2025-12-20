@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spooled-example-spriteforge-config
+data:
+  NODE_ENV: "production"
+  HOST: "0.0.0.0"
+  PORT: "3000"
+
+  # Spooled endpoints
+  SPOOLED_BASE_URL: "https://api.spooled.cloud"
+  SPOOLED_WS_URL: "wss://api.spooled.cloud"
+
+  # Queues used by this demo
+  QUEUE_FRAMES: "spriteforge-frames"
+  QUEUE_ASSEMBLE: "spriteforge-assemble"
+  QUEUE_PUBLIC: "spriteforge-public"
+
+  # Schedule (Sprite of the Minute)
+  ENABLE_PUBLIC_SCHEDULE: "true"
+  PUBLIC_SCHEDULE_NAME: "spriteforge-public-sprite"
+  PUBLIC_SCHEDULE_CRON: "0 * * * * *"
+  PUBLIC_SCHEDULE_TIMEZONE: "UTC"
+
+  # Worker concurrency
+  WORKER_CONCURRENCY_FRAMES: "8"
+  WORKER_CONCURRENCY_ASSEMBLE: "2"
+  WORKER_CONCURRENCY_PUBLIC: "1"
+
+  # Job retention (hours until demo jobs expire)
+  JOB_RETENTION_HOURS: "24"

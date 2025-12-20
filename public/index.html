@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Primary Meta Tags -->
+    <title>SpriteForge — Powered by Spooled Cloud</title>
+    <meta name="title" content="SpriteForge — Powered by Spooled Cloud" />
+    <meta name="description" content="Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action. An interactive demo of Spooled Cloud's distributed job queue." />
+    <meta name="keywords" content="pixel art, sprite generator, job queue, workflow, Spooled Cloud, real-time, demo" />
+    <meta name="author" content="Spooled Cloud" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://example.spooled.cloud/" />
+    <meta property="og:title" content="SpriteForge — Powered by Spooled Cloud" />
+    <meta property="og:description" content="Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action." />
+    <meta property="og:image" content="https://example.spooled.cloud/og.webp" />
+    <meta property="og:site_name" content="SpriteForge" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://example.spooled.cloud/" />
+    <meta property="twitter:title" content="SpriteForge — Powered by Spooled Cloud" />
+    <meta property="twitter:description" content="Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action." />
+    <meta property="twitter:image" content="https://example.spooled.cloud/og.webp" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="msapplication-TileColor" content="#0a0a0f" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles.css" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://example.spooled.cloud/" />
+  </head>
+  <body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+        </div>
+        <div>
+          <div class="title">SpriteForge</div>
+          <div class="subtitle">Real-time pixel art • <a href="https://spooled.cloud" target="_blank">Spooled Cloud</a></div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="stats-mini">
+          <div class="stat-mini">
+            <span class="stat-value" id="stat-jobs">0</span>
+            <span class="stat-label">jobs</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-value" id="stat-completed">0</span>
+            <span class="stat-label">done</span>
+          </div>
+          <div class="stat-mini">
+            <span class="stat-value" id="stat-retries">0</span>
+            <span class="stat-label">retries</span>
+          </div>
+        </div>
+        <div class="pill" id="conn-pill">
+          <span class="pill-dot"></span>
+          <span class="pill-text">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Welcome Banner -->
+      <section class="card card-welcome card-full">
+        <div class="welcome-inner">
+          <div class="welcome-left">
+            <div class="welcome-header">
+              <span class="welcome-wave">👋</span>
+              <h1>Welcome to SpriteForge!</h1>
+            </div>
+            <p class="welcome-text">
+              Watch <strong>Spooled Cloud</strong> orchestrate distributed jobs in real-time. 
+              Each sprite becomes a <em>workflow</em> with parallel <em>jobs</em> processed by <em>workers</em>.
+            </p>
+          </div>
+          <div class="welcome-features">
+            <div class="feature"><span class="feature-icon">📋</span><span>Watch jobs process</span></div>
+            <div class="feature"><span class="feature-icon">🔄</span><span>See auto retries</span></div>
+            <div class="feature"><span class="feature-icon">📡</span><span>Live WebSocket events</span></div>
+            <div class="feature"><span class="feature-icon">⏰</span><span>Scheduled jobs</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Left Column -->
+      <div class="col-left">
+        <!-- Controls Card -->
+        <section class="card">
+          <div class="card-header">
+            <span class="card-icon">🎮</span>
+            <h2>Create Your Sprite</h2>
+          </div>
+          
+          <div class="form-group">
+            <label for="seed">Sprite Name</label>
+            <input id="seed" type="text" placeholder="e.g. pixel-hero, neon-dancer..." maxlength="64" />
+            <span class="form-hint">Leave empty for random</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="palette">Palette</label>
+              <select id="palette"></select>
+            </div>
+            <div class="form-group">
+              <label for="animation">Animation</label>
+              <select id="animation">
+                <option value="walk">🚶 Walk</option>
+                <option value="idle">😴 Idle</option>
+                <option value="dance">💃 Dance</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Frames: <strong id="frames-label">8</strong></label>
+            <input id="frames" type="range" min="4" max="12" step="1" value="8" />
+            <div class="range-labels"><span>4</span><span>12</span></div>
+          </div>
+
+          <div class="form-group chaos-group">
+            <label>
+              <span class="chaos-icon">🎲</span>
+              Chaos: <strong id="chaos-label">10</strong>%
+              <span class="label-hint">(simulates failures)</span>
+            </label>
+            <input id="chaos" type="range" min="0" max="50" step="5" value="10" class="chaos-slider" />
+          </div>
+
+          <div class="btn-row">
+            <button id="forge" class="btn btn-primary btn-large">
+              <span class="btn-icon">⚡</span>Forge Sprite
+            </button>
+            <button id="download" class="btn btn-secondary" disabled>
+              <span class="btn-icon">📥</span>PNG
+            </button>
+          </div>
+        </section>
+
+        <!-- How It Works -->
+        <section class="card">
+          <div class="card-header">
+            <span class="card-icon">🧠</span>
+            <h2>How It Works</h2>
+          </div>
+          <div class="steps">
+            <div class="step" id="step-1"><div class="step-num">1</div><div class="step-content"><strong>Create Workflow</strong><br><span class="muted">N frame jobs + 1 assemble job</span></div></div>
+            <div class="step" id="step-2"><div class="step-num">2</div><div class="step-content"><strong>Jobs Queue</strong><br><span class="muted">Frames enter parallel processing</span></div></div>
+            <div class="step" id="step-3"><div class="step-num">3</div><div class="step-content"><strong>Workers Process</strong><br><span class="muted">Generate pixel art per frame</span></div></div>
+            <div class="step" id="step-4"><div class="step-num">4</div><div class="step-content"><strong>Events Stream</strong><br><span class="muted">WebSocket → SSE → Browser</span></div></div>
+            <div class="step" id="step-5"><div class="step-num">5</div><div class="step-content"><strong>Assemble</strong><br><span class="muted">Combine all frames into sprite</span></div></div>
+          </div>
+        </section>
+
+        <!-- Scheduled Sprite -->
+        <section class="card">
+          <div class="card-header">
+            <span class="card-icon">⏰</span>
+            <h2>Sprite of the Minute</h2>
+          </div>
+          <canvas id="public" width="280" height="140"></canvas>
+          <div class="form-hint">Auto-generated by cron: <code>0 * * * * *</code></div>
+        </section>
+      </div>
+
+      <!-- Right Column -->
+      <div class="col-right">
+        <!-- Preview -->
+        <section class="card card-preview">
+          <div class="card-header">
+            <span class="card-icon">🖼️</span>
+            <h2>Live Preview</h2>
+            <span class="preview-status" id="preview-status">Waiting…</span>
+          </div>
+          <div class="preview-container">
+            <canvas id="preview" width="320" height="320"></canvas>
+            <div class="preview-overlay" id="preview-overlay">
+              <div class="preview-placeholder">
+                <span class="placeholder-icon">✨</span>
+                <span>Click "Forge Sprite" to begin</span>
+              </div>
+            </div>
+          </div>
+          <div class="preview-meta" id="preview-meta"></div>
+        </section>
+
+        <!-- Jobs -->
+        <section class="card card-jobs">
+          <div class="card-header">
+            <span class="card-icon">📊</span>
+            <h2>Workflow Jobs</h2>
+            <span class="job-counter" id="job-counter">0/0</span>
+          </div>
+          
+          <div class="workflow-diagram">
+            <div class="workflow-viz">
+              <div class="wf-node wf-start">START</div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-parallel" id="wf-frames">
+                <span class="wf-label">frames</span>
+              </div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-node wf-assemble" id="wf-assemble">assemble</div>
+              <span class="wf-arrow">→</span>
+              <div class="wf-node wf-end">DONE</div>
+            </div>
+          </div>
+
+          <div class="jobs-legend">
+            <span class="legend-item"><span class="dot pending"></span>Pending</span>
+            <span class="legend-item"><span class="dot processing"></span>Processing</span>
+            <span class="legend-item"><span class="dot completed"></span>Done</span>
+            <span class="legend-item"><span class="dot failed"></span>Retrying</span>
+          </div>
+          
+          <div id="jobs" class="jobs-list"></div>
+          <div class="jobs-empty" id="jobs-empty">No active jobs</div>
+        </section>
+
+        <!-- Events -->
+        <section class="card card-events">
+          <div class="card-header">
+            <span class="card-icon">📡</span>
+            <h2>Live Events</h2>
+            <div class="event-indicator" id="event-indicator"></div>
+          </div>
+          <div class="events-log" id="log"></div>
+        </section>
+      </div>
+
+      <!-- Understanding Spooled - For Everyone -->
+      <section class="card card-full card-explainer">
+        <div class="card-header">
+          <span class="card-icon">📚</span>
+          <h2>Understanding Spooled: A Simple Guide</h2>
+        </div>
+        
+        <p class="explainer-intro">
+          Don't worry if you're not technical! Here's how this demo works, explained like you're ordering coffee. ☕
+        </p>
+
+        <div class="explainer-grid">
+          <!-- Jobs -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">📝</span>
+              <h3>What is a Job?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>A job is like your coffee order slip. It says "make a latte with oat milk" and sits in the queue until a barista picks it up.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>When you click "Forge Sprite", we create jobs like "generate frame 1", "generate frame 2", etc. Each is a task waiting to be done.</p>
+              </div>
+              <div class="explainer-example">
+                <strong>💻 Example job:</strong>
+                <pre><code>{
+  "queue": "spriteforge-frames",
+  "payload": {
+    "frame": 3,
+    "seed": "pixel-hero",
+    "palette": "neon"
+  }
+}</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queues -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">📋</span>
+              <h3>What is a Queue?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>The queue is the line of order slips pinned above the espresso machine. First order in = first order made.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>We have 3 queues: <code>frames</code> (generate each frame), <code>assemble</code> (combine frames), and <code>public</code> (for scheduled sprites).</p>
+              </div>
+              <div class="explainer-example">
+                <strong>💡 Why separate queues?</strong>
+                <p>Different tasks need different handling. Frame generation is quick (many workers), assembly is heavy (fewer workers).</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workers -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">👷</span>
+              <h3>What is a Worker?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>Workers are the baristas. They grab orders from the queue, make the drinks, and mark orders as complete. More baristas = faster service.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>We run 8 frame workers (parallel pixel generation) and 2 assemble workers (combining frames into sprites).</p>
+              </div>
+              <div class="explainer-example">
+                <strong>🔄 Scaling:</strong>
+                <p>Busy day? Add more workers. Quiet day? Scale down. Workers pull work automatically—no traffic directing needed.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Workflows -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">🔀</span>
+              <h3>What is a Workflow?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>A workflow is a combo order: "Make coffee A and muffin B, then box them together." Some steps run in parallel (coffee + muffin), some must wait (boxing comes last).</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>Your sprite workflow: generate all 8 frames in parallel → when ALL done → assemble into final sprite. The "assemble" job depends on all frame jobs.</p>
+              </div>
+              <div class="explainer-visual">
+                <div class="mini-workflow">
+                  <span class="mw-parallel">
+                    <span class="mw-job">frame-0</span>
+                    <span class="mw-job">frame-1</span>
+                    <span class="mw-job">...</span>
+                    <span class="mw-job">frame-7</span>
+                  </span>
+                  <span class="mw-arrow">→ all done →</span>
+                  <span class="mw-job mw-final">assemble</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Retries -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">🔄</span>
+              <h3>What are Retries?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>Dropped a drink? Make it again. The order doesn't disappear—it goes back in the queue. Maybe a different barista makes it this time.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>The "Chaos" slider simulates failures. At 20%, roughly 1 in 5 frame jobs will "fail" on first attempt. Spooled automatically retries them!</p>
+              </div>
+              <div class="explainer-example">
+                <strong>⚙️ Configurable:</strong>
+                <p>You set how many retries (default: 3), delay between retries, and even exponential backoff. Failed 3 times? Mark as permanently failed.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-time Events -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">📡</span>
+              <h3>What are Real-time Events?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>The screen that shows "Order #42 is ready!" That's real-time. You don't keep asking "is my order ready?" — the system tells YOU.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>Watch the "Live Events" panel! Every job created, started, completed, or failed appears instantly. The colored dots update in real-time.</p>
+              </div>
+              <div class="explainer-example">
+                <strong>🔌 How it works:</strong>
+                <p>Spooled sends events via WebSocket. Our server listens and forwards them to your browser via SSE (Server-Sent Events). Zero polling!</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedules -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">⏰</span>
+              <h3>What are Schedules?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>The coffee that's automatically brewed at 6 AM every morning, before any customer asks. A scheduled job runs on its own timetable.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>"Sprite of the Minute" is a schedule that runs every minute (<code>0 * * * * *</code> cron). It creates a random public sprite automatically.</p>
+              </div>
+              <div class="explainer-example">
+                <strong>🕐 Cron examples:</strong>
+                <p>
+                  <code>0 9 * * *</code> = daily at 9 AM<br>
+                  <code>0 */2 * * *</code> = every 2 hours<br>
+                  <code>0 0 * * 0</code> = every Sunday midnight
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- API Keys -->
+          <div class="explainer-item">
+            <div class="explainer-header">
+              <span class="explainer-emoji">🔑</span>
+              <h3>How is This Secure?</h3>
+            </div>
+            <div class="explainer-content">
+              <div class="explainer-analogy">
+                <strong>☕ Coffee shop analogy:</strong>
+                <p>Staff have keys to the back room. Customers don't. The barista uses their key to access supplies, not you.</p>
+              </div>
+              <div class="explainer-here">
+                <strong>📍 In this demo:</strong>
+                <p>The Spooled API key stays on our server—your browser never sees it. You talk to our server, our server talks to Spooled. Safe!</p>
+              </div>
+              <div class="explainer-visual">
+                <div class="security-flow">
+                  <span class="sf-box">Your Browser</span>
+                  <span class="sf-arrow">→</span>
+                  <span class="sf-box sf-server">Our Server<br><small>(has API key)</small></span>
+                  <span class="sf-arrow">→</span>
+                  <span class="sf-box sf-cloud">Spooled Cloud</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Try It Yourself -->
+        <div class="try-yourself">
+          <h3>🛠️ Try It Yourself</h3>
+          <div class="try-steps">
+            <div class="try-step">
+              <span class="try-num">1</span>
+              <div class="try-content">
+                <strong>Click "Forge Sprite"</strong>
+                <p>Watch the workflow jobs appear in the right panel</p>
+              </div>
+            </div>
+            <div class="try-step">
+              <span class="try-num">2</span>
+              <div class="try-content">
+                <strong>Watch the dots change color</strong>
+                <p>Gray → Orange (processing) → Green (done) or Red → retry</p>
+              </div>
+            </div>
+            <div class="try-step">
+              <span class="try-num">3</span>
+              <div class="try-content">
+                <strong>Increase Chaos to 30%+</strong>
+                <p>See retries in action! Jobs fail and automatically retry</p>
+              </div>
+            </div>
+            <div class="try-step">
+              <span class="try-num">4</span>
+              <div class="try-content">
+                <strong>Watch "Live Events"</strong>
+                <p>Every job state change appears in real-time</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparison Section -->
+      <section class="card card-full card-comparison">
+        <div class="card-header">
+          <span class="card-icon">⚖️</span>
+          <h2>How Would You Build This With Other Services?</h2>
+        </div>
+        
+        <p class="comparison-intro">
+          This demo uses <strong>jobs, workflows, workers, real-time events, and schedules</strong>. 
+          Here's an honest look at how you'd implement the same functionality with popular alternatives:
+        </p>
+
+        <div class="comparison-grid">
+          <!-- AWS -->
+          <div class="comparison-card">
+            <div class="comparison-header">
+              <span class="comparison-logo">☁️</span>
+              <h3>AWS SQS + Step Functions</h3>
+            </div>
+            <div class="comparison-body">
+              <div class="comparison-how">
+                <strong>How you'd build it:</strong>
+                <ul>
+                  <li>SQS queues for job messages</li>
+                  <li>Step Functions for workflow DAG</li>
+                  <li>Lambda workers to process jobs</li>
+                  <li>API Gateway + WebSocket API for real-time</li>
+                  <li>EventBridge for cron schedules</li>
+                  <li>DynamoDB to store job state</li>
+                </ul>
+              </div>
+              <div class="comparison-verdict">
+                <span class="verdict-label">Trade-offs:</span>
+                <span class="verdict-text">Powerful and scalable, but requires orchestrating 6+ services. Step Functions pricing is per state transition. No built-in real-time streaming—you'd build it yourself.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redis/BullMQ -->
+          <div class="comparison-card">
+            <div class="comparison-header">
+              <span class="comparison-logo">🔴</span>
+              <h3>Redis + BullMQ</h3>
+            </div>
+            <div class="comparison-body">
+              <div class="comparison-how">
+                <strong>How you'd build it:</strong>
+                <ul>
+                  <li>BullMQ queues for jobs</li>
+                  <li>Custom code for workflow dependencies</li>
+                  <li>Node.js workers with BullMQ</li>
+                  <li>Bull Board for monitoring</li>
+                  <li>node-cron or BullMQ repeatable jobs</li>
+                  <li>Redis Pub/Sub for events (build SSE yourself)</li>
+                </ul>
+              </div>
+              <div class="comparison-verdict">
+                <span class="verdict-label">Trade-offs:</span>
+                <span class="verdict-text">Great Node.js DX and fast. But you manage Redis infrastructure, implement workflow logic yourself, and build real-time delivery. Data durability depends on Redis persistence config.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Temporal -->
+          <div class="comparison-card">
+            <div class="comparison-header">
+              <span class="comparison-logo">⏱️</span>
+              <h3>Temporal</h3>
+            </div>
+            <div class="comparison-body">
+              <div class="comparison-how">
+                <strong>How you'd build it:</strong>
+                <ul>
+                  <li>Temporal workflows for the DAG</li>
+                  <li>Activities for frame generation</li>
+                  <li>Built-in retries and timeouts</li>
+                  <li>Temporal Cloud or self-host cluster</li>
+                  <li>Custom real-time layer (Temporal doesn't stream to browsers)</li>
+                  <li>Schedules API for cron</li>
+                </ul>
+              </div>
+              <div class="comparison-verdict">
+                <span class="verdict-label">Trade-offs:</span>
+                <span class="verdict-text">Excellent workflow engine with strong guarantees. However, requires learning their programming model, self-hosting is complex, and there's no built-in browser streaming.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inngest -->
+          <div class="comparison-card">
+            <div class="comparison-header">
+              <span class="comparison-logo">⚡</span>
+              <h3>Inngest</h3>
+            </div>
+            <div class="comparison-body">
+              <div class="comparison-how">
+                <strong>How you'd build it:</strong>
+                <ul>
+                  <li>Inngest functions for each step</li>
+                  <li>step.run() for parallel work</li>
+                  <li>Built-in retries</li>
+                  <li>Cron triggers for schedules</li>
+                  <li>Serverless deployment</li>
+                  <li>Custom polling/WebSocket for real-time</li>
+                </ul>
+              </div>
+              <div class="comparison-verdict">
+                <span class="verdict-label">Trade-offs:</span>
+                <span class="verdict-text">Modern DX with TypeScript-first approach. Great for serverless. But event-driven model differs from queue semantics, and you'd build real-time streaming yourself.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Why Spooled -->
+        <div class="why-spooled">
+          <h3>🎯 Why We Built Spooled</h3>
+          <p>
+            We wanted a job queue that's <strong>simple to start with</strong> but <strong>powerful enough to scale</strong>. 
+            Here's what makes Spooled different:
+          </p>
+          
+          <div class="spooled-features">
+            <div class="spooled-feature">
+              <div class="sf-icon">🐘</div>
+              <div class="sf-content">
+                <strong>PostgreSQL as Source of Truth</strong>
+                <span>Your jobs live in a real database with ACID transactions. Query them with SQL. 
+                No eventual consistency surprises. If Postgres says it's committed, it's committed.</span>
+              </div>
+            </div>
+            
+            <div class="spooled-feature">
+              <div class="sf-icon">📡</div>
+              <div class="sf-content">
+                <strong>Real-time Built In</strong>
+                <span>WebSocket and SSE endpoints are first-class citizens, not afterthoughts. 
+                Stream job events to browsers without building a separate pub/sub layer.</span>
+              </div>
+            </div>
+            
+            <div class="spooled-feature">
+              <div class="sf-icon">🔗</div>
+              <div class="sf-content">
+                <strong>Simple REST API</strong>
+                <span>No SDK required. Create jobs with curl. Works with any language. 
+                The API is designed to be obvious—if you've used REST, you know Spooled.</span>
+              </div>
+            </div>
+            
+            <div class="spooled-feature">
+              <div class="sf-icon">🔄</div>
+              <div class="sf-content">
+                <strong>Workflows Without a DSL</strong>
+                <span>Define job dependencies with simple JSON. No state machine DSL to learn. 
+                Just say "this job depends on those jobs" and we handle the rest.</span>
+              </div>
+            </div>
+            
+            <div class="spooled-feature">
+              <div class="sf-icon">🏠</div>
+              <div class="sf-content">
+                <strong>Self-Host or Cloud</strong>
+                <span>Run on your infrastructure with Docker, or use Spooled Cloud. 
+                Same API either way. No vendor lock-in, no data leaving your network if you prefer.</span>
+              </div>
+            </div>
+            
+            <div class="spooled-feature">
+              <div class="sf-icon">💰</div>
+              <div class="sf-content">
+                <strong>Predictable Pricing</strong>
+                <span>Pay per job, not per state transition or message. 
+                No surprise bills from chatty workflows. Free tier for experimentation.</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="honest-note">
+            <strong>🤝 Being honest:</strong> Spooled isn't the right choice for everyone. 
+            If you need sub-millisecond latency, use Redis directly. 
+            If you're all-in on AWS, Step Functions integrates better with Lambda. 
+            If you need complex saga patterns, Temporal is more battle-tested.
+            <br><br>
+            But if you want a <strong>simple, queryable job queue</strong> with <strong>real-time streaming</strong> 
+            that you can understand in an afternoon—give Spooled a try.
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Made with ⚡ by <a href="https://spooled.cloud" target="_blank">Spooled Cloud</a></span>
+      <span class="sep">•</span>
+      <a href="https://github.com/spooled-cloud/spooled-example-spriteforge" target="_blank">Source</a>
+      <span class="sep">•</span>
+      <a href="https://spooled.cloud/docs" target="_blank">Docs</a>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# SpriteForge Docker Compose
+# For local development and testing
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Usage:
+#   cp .env.example .env
+#   # Edit .env with your SPOOLED_API_KEY
+#   docker compose up --build
+#
+# ═══════════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  spriteforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      # Required
+      - SPOOLED_API_KEY=${SPOOLED_API_KEY}
+      
+      # Optional - Spooled endpoints
+      - SPOOLED_BASE_URL=${SPOOLED_BASE_URL:-https://api.spooled.cloud}
+      - SPOOLED_WS_URL=${SPOOLED_WS_URL:-wss://api.spooled.cloud}
+      
+      # Optional - Server config
+      - NODE_ENV=${NODE_ENV:-production}
+      - HOST=0.0.0.0
+      - PORT=3000
+      
+      # Optional - Queue names
+      - QUEUE_FRAMES=${QUEUE_FRAMES:-spriteforge-frames}
+      - QUEUE_ASSEMBLE=${QUEUE_ASSEMBLE:-spriteforge-assemble}
+      - QUEUE_PUBLIC=${QUEUE_PUBLIC:-spriteforge-public}
+      
+      # Optional - Worker concurrency
+      - WORKER_CONCURRENCY_FRAMES=${WORKER_CONCURRENCY_FRAMES:-8}
+      - WORKER_CONCURRENCY_ASSEMBLE=${WORKER_CONCURRENCY_ASSEMBLE:-2}
+      
+      # Optional - Public schedule
+      - ENABLE_PUBLIC_SCHEDULE=${ENABLE_PUBLIC_SCHEDULE:-true}
+      - PUBLIC_SCHEDULE_CRON=${PUBLIC_SCHEDULE_CRON:-0 * * * * *}
+      - PUBLIC_SCHEDULE_TIMEZONE=${PUBLIC_SCHEDULE_TIMEZONE:-UTC}
+      
+      # Optional - Job retention (for cleanup)
+      - JOB_RETENTION_HOURS=${JOB_RETENTION_HOURS:-24}
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Resource limits (optional, adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M

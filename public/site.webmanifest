@@ -1,0 +1,24 @@
+{
+  "name": "SpriteForge - Powered by Spooled Cloud",
+  "short_name": "SpriteForge",
+  "description": "Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action.",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#0a0a0f",
+  "background_color": "#0a0a0f",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/"
+}

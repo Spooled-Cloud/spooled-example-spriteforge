@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spooled-example-spriteforge
+  labels:
+    app.kubernetes.io/name: spooled-example-spriteforge
+    app.kubernetes.io/part-of: spooled-cloud
