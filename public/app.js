@@ -661,13 +661,19 @@ function handleSpooledEvent(evt) {
   }
 
   if (normalizedType === 'job.completed') {
-    if (jobs.has(data.jobId)) {
-      const job = jobs.get(data.jobId);
-      job.status = 'completed';
-      if (typeof retryFromPayload === 'number') job.retryCount = retryFromPayload;
-      renderJobs();
-      updateStats();
+    // CRITICAL: Only process events for jobs that belong to the CURRENT forge.
+    // Without this check, stale events from a previous (retrying) forge could
+    // overwrite the current sprite with old data (different palette, etc.).
+    if (!jobs.has(data.jobId)) {
+      // This event is from a previous forge or unknown job - ignore it
+      return;
     }
+    
+    const job = jobs.get(data.jobId);
+    job.status = 'completed';
+    if (typeof retryFromPayload === 'number') job.retryCount = retryFromPayload;
+    renderJobs();
+    updateStats();
     
     setStep(4);
 
@@ -676,9 +682,9 @@ function handleSpooledEvent(evt) {
       
       // Mark the corresponding frame job as completed by matching frame index
       const frameKey = `frame-${data.result.frameIndex}`;
-      for (const [, job] of jobs) {
-        if (job.key === frameKey && job.status !== 'completed') {
-          job.status = 'completed';
+      for (const [, j] of jobs) {
+        if (j.key === frameKey && j.status !== 'completed') {
+          j.status = 'completed';
         }
       }
       
@@ -688,9 +694,9 @@ function handleSpooledEvent(evt) {
       // If we have ALL frames, mark any remaining frame jobs as completed
       // This handles cases where events were missed but frames were actually processed
       if (done === total) {
-        for (const [, job] of jobs) {
-          if (job.key.startsWith('frame-') && job.status !== 'completed') {
-            job.status = 'completed';
+        for (const [, j] of jobs) {
+          if (j.key.startsWith('frame-') && j.status !== 'completed') {
+            j.status = 'completed';
           }
         }
       }
@@ -721,14 +727,14 @@ function handleSpooledEvent(evt) {
       
       // Mark ALL jobs as completed since the sprite is done
       // This handles cases where some events were missed
-      for (const [, job] of jobs) {
-        job.status = 'completed';
+      for (const [, j] of jobs) {
+        j.status = 'completed';
       }
       
       // Explicitly mark assemble job by key (in case jobId didn't match)
-      for (const [, job] of jobs) {
-        if (job.key === 'assemble') {
-          job.status = 'completed';
+      for (const [, j] of jobs) {
+        if (j.key === 'assemble') {
+          j.status = 'completed';
         }
       }
       
