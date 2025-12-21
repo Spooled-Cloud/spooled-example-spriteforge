@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://spooled.cloud/logo.svg" alt="Spooled Logo" width="80">
+  <img src="https://spooled.cloud/logo.webp" alt="Spooled Logo" width="80">
 </p>
 
 <h1 align="center">SpriteForge</h1>
@@ -19,7 +19,7 @@
     <img src="https://img.shields.io/badge/demo-example.spooled.cloud-brightgreen" alt="Live Demo">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+    <img src="https://img.shields.io/badge/license-Apache_2.0-blue.svg" alt="License">
   </a>
 </p>
 
@@ -104,24 +104,24 @@ docker run -p 3000:3000 \
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                              SpriteForge                                 │
+│                              SpriteForge                                │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
+│                                                                         │
 │   Browser                     Server                    Spooled Cloud   │
 │   ───────                     ──────                    ─────────────   │
-│                                                                          │
-│   ┌──────────┐  click    ┌──────────────┐  create    ┌──────────────┐  │
-│   │   UI     │ ────────► │   Express    │ ────────► │   Workflow   │  │
-│   └──────────┘           │   Server     │            │   + Jobs     │  │
-│        ▲                 └──────────────┘            └──────────────┘  │
+│                                                                         │
+│   ┌──────────┐  click    ┌──────────────┐  create    ┌──────────────┐   │
+│   │   UI     │ ────────► │   Express    │  ────────► │   Workflow   │   │
+│   └──────────┘           │   Server     │            │   + Jobs     │   │
+│        ▲                 └──────────────┘            └──────────────┘   │
 │        │                        │                           │           │
 │        │ SSE              ┌─────┴─────┐              Workers│           │
 │        │                  │           │                     ▼           │
-│   ┌────┴─────┐      ┌─────┴───┐ ┌─────┴───┐         ┌──────────────┐  │
-│   │  Events  │ ◄─── │ frame   │ │ assemble│ ◄────── │   Process    │  │
-│   │  Stream  │      │ worker  │ │ worker  │         │   & Return   │  │
-│   └──────────┘      └─────────┘ └─────────┘         └──────────────┘  │
-│                                                                          │
+│   ┌────┴─────┐      ┌─────┴───┐ ┌─────┴───┐         ┌──────────────┐    │
+│   │  Events  │ ◄─── │ frame   │ │ assemble│ ◄────── │   Process    │    │
+│   │  Stream  │      │ worker  │ │ worker  │         │   & Return   │    │
+│   └──────────┘      └─────────┘ └─────────┘         └──────────────┘    │
+│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -136,11 +136,11 @@ When you click "Forge Sprite":
 
 ```
 START ──► [frame-0] [frame-1] [frame-2] ... [frame-N] ──► [assemble] ──► DONE
-              │         │         │              │              │
-              └─────────┴─────────┴──────────────┘              │
-                     all must complete before                    │
-                                                                 ▼
-                                                          sprite rendered
+            │         │         │              │               │
+            └─────────┴─────────┴──────────────┘               │
+                   all must complete before                    │
+                                                               ▼
+                                                       sprite rendered
 ```
 
 ---
@@ -396,7 +396,7 @@ git push origin feature/my-feature
 
 ## License
 
-MIT © [Spooled Cloud](https://spooled.cloud)
+Apache 2.0 © [Spooled Cloud](https://spooled.cloud)
 
 ---
 
