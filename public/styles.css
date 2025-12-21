@@ -691,6 +691,53 @@ input[type="range"]::-webkit-slider-thumb:hover {
   text-align: center;
 }
 
+/* Progress overlay on canvas */
+.preview-progress {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  z-index: 5;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.preview-progress.hidden {
+  display: none;
+}
+
+.preview-progress.complete {
+  border-color: var(--success);
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.progress-text {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.preview-progress.complete .progress-text {
+  color: var(--success);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Jobs Card
    ═══════════════════════════════════════════════════════════════════════════ */

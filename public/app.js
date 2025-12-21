@@ -38,6 +38,8 @@ const els = {
   previewOverlay: $('preview-overlay'),
   previewStatus: $('preview-status'),
   previewMeta: $('preview-meta'),
+  previewProgress: $('preview-progress'),
+  progressText: $('progress-text'),
   
   // Jobs
   jobs: $('jobs'),
@@ -397,6 +399,35 @@ function enableDownloadIfReady() {
   els.download.disabled = !(sprite && sprite.frames && sprite.frames.length > 0);
 }
 
+function updateProgress(done, total, phase = 'frames') {
+  if (!els.previewProgress || !els.progressText) return;
+  
+  if (phase === 'complete') {
+    els.previewProgress.classList.remove('hidden');
+    els.previewProgress.classList.add('complete');
+    els.progressText.textContent = `✅ Complete! ${total} frames`;
+  } else if (phase === 'assembling') {
+    els.previewProgress.classList.remove('hidden', 'complete');
+    els.progressText.textContent = `🔧 Assembling ${total} frames…`;
+  } else if (phase === 'frames') {
+    els.previewProgress.classList.remove('hidden', 'complete');
+    if (done < total) {
+      els.progressText.textContent = `⏳ ${done}/${total} frames ready`;
+    } else {
+      els.progressText.textContent = `✓ ${done}/${total} frames ready`;
+    }
+  } else {
+    els.previewProgress.classList.add('hidden');
+  }
+}
+
+function hideProgress() {
+  if (els.previewProgress) {
+    els.previewProgress.classList.add('hidden');
+    els.previewProgress.classList.remove('complete');
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Download
 // ═══════════════════════════════════════════════════════════════════════════
@@ -440,6 +471,7 @@ async function forgeSprite() {
   renderJobs();
   enableDownloadIfReady();
   els.previewOverlay.classList.remove('hidden');
+  hideProgress();
   
   setStep(1);
 
@@ -553,13 +585,22 @@ function handleSpooledEvent(evt) {
 
       // Make the "assemble" phase obvious (non-technical users look at the preview first)
       if (job.key === 'assemble') {
+        // Get expected frame count from tracked jobs
+        const frameCount = [...jobs.values()].filter(j => j.key.startsWith('frame-')).length || 8;
+        
         if (newStatus === 'processing') {
           els.previewStatus.textContent = 'Assembling…';
           els.previewMeta.textContent = 'Combining all frames into the final sprite…';
-          setStep(4);
+          setStep(5); // Step 5 = Assemble is now active
+          updateProgress(frameCount, frameCount, 'assembling');
         }
         if (newStatus === 'pending' && oldStatus === 'processing') {
           els.previewStatus.textContent = 'Assemble retry scheduled…';
+        }
+        if (newStatus === 'completed') {
+          setStep(5);
+          // Mark step 5 as completed
+          if (els.steps[4]) els.steps[4].classList.add('completed');
         }
       }
     }
@@ -656,7 +697,12 @@ function handleSpooledEvent(evt) {
       renderJobs();
       
       els.previewMeta.textContent = `Frame ${done}/${total} ready`;
-      els.previewStatus.textContent = `${done}/${total} frames`;
+      if (done < total) {
+        els.previewStatus.textContent = `⏳ ${done}/${total} frames`;
+      } else {
+        els.previewStatus.textContent = `✓ ${done}/${total} frames`;
+      }
+      updateProgress(done, total, 'frames');
       logLine(`✅ Frame ${data.result.frameIndex + 1}/${total} completed`, 'completed');
     }
 
@@ -688,9 +734,16 @@ function handleSpooledEvent(evt) {
       renderJobs();
       
       els.previewMeta.textContent = `Done! ${sprite.frameCount} frames • ${sprite.palette.length} colors`;
-      els.previewStatus.textContent = 'Complete!';
+      els.previewStatus.textContent = '✅ Complete!';
       enableDownloadIfReady();
+      
+      // Mark step 5 as completed (all steps done)
       setStep(5);
+      if (els.steps[4]) els.steps[4].classList.add('completed');
+      
+      // Show complete progress
+      updateProgress(sprite.frameCount, sprite.frameCount, 'complete');
+      
       logLine(`🎉 <span class="event-completed"><strong>SPRITE COMPLETE!</strong></span> ${sprite.frameCount} frames assembled`, 'completed');
 
       // Once complete, stop reconciliation polling
