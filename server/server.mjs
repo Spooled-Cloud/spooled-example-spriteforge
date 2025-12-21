@@ -486,15 +486,43 @@ function clampNum(n, min, max) {
   return Math.max(min, Math.min(max, x));
 }
 
+// How long to wait before attempting to restart a dead realtime connection
+const REALTIME_RESTART_DELAY_MS = 30_000; // 30 seconds
+
+/** @type {SpooledRealtime | null} */
+let currentRealtime = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let realtimeRestartTimer = null;
+
+/**
+ * Start the realtime connection with automatic restart on persistent disconnection.
+ * The SDK has built-in reconnect (10 attempts), but if that exhausts, we restart fresh.
+ */
 async function startRealtime() {
+  // Clear any pending restart
+  if (realtimeRestartTimer) {
+    clearTimeout(realtimeRestartTimer);
+    realtimeRestartTimer = null;
+  }
+
   try {
     // Use WebSocket for real-time events (SSE only sends health checks)
     const realtime = /** @type {SpooledRealtime} */ (await client.realtime({ type: 'websocket' }));
+    currentRealtime = realtime;
 
     realtime.onStateChange((state) => {
       // eslint-disable-next-line no-console
       console.log(`[realtime] state changed: ${state}`);
       broadcastAll('server.realtime', { state, at: nowIso() });
+
+      // If connection is fully disconnected (SDK gave up reconnecting), schedule a fresh restart
+      if (state === 'disconnected') {
+        scheduleRealtimeRestart();
+      } else if (realtimeRestartTimer) {
+        // Connected or reconnecting - cancel any pending restart
+        clearTimeout(realtimeRestartTimer);
+        realtimeRestartTimer = null;
+      }
     });
 
     const handleEvent = async (event) => {
@@ -634,8 +662,41 @@ async function startRealtime() {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.warn('Spooled realtime connection failed (continuing without live updates):', error?.message || error);
+    // Schedule a restart attempt
+    scheduleRealtimeRestart();
     return null;
   }
+}
+
+/**
+ * Schedule a restart of the realtime connection after a delay.
+ * This handles cases where the SDK exhausts its reconnect attempts.
+ */
+function scheduleRealtimeRestart() {
+  if (realtimeRestartTimer) {
+    return; // Already scheduled
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`[realtime] Will attempt fresh restart in ${REALTIME_RESTART_DELAY_MS / 1000}s...`);
+
+  realtimeRestartTimer = setTimeout(async () => {
+    realtimeRestartTimer = null;
+
+    // Disconnect old instance if any
+    if (currentRealtime) {
+      try {
+        currentRealtime.disconnect();
+      } catch {
+        // ignore
+      }
+      currentRealtime = null;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('[realtime] Attempting fresh restart...');
+    await startRealtime();
+  }, REALTIME_RESTART_DELAY_MS);
 }
 
 async function ensurePublicSchedule() {
