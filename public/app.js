@@ -71,6 +71,7 @@ let animFrame = 0;
 let animT0 = 0;
 let publicSpriteMsg = null;
 let currentPaletteName = null; // Track the selected palette for current forge
+let currentPaletteColors = null; // Store actual palette colors from first frame
 
 /** @type {Map<string, { key: string; status: string; retryCount: number; queueName?: string }>} */
 const jobs = new Map();
@@ -179,6 +180,10 @@ async function reconcileOnce({ includeResult }) {
       if (includeResult && item.result && typeof item.result === 'object') {
         if (item.result.kind === 'frame') {
           framePixels.set(item.result.frameIndex, item.result.pixels);
+          // Capture palette from first frame result
+          if (!currentPaletteColors && item.result.palette) {
+            currentPaletteColors = item.result.palette;
+          }
         }
         if (item.result.kind === 'sprite') {
           // Prevent duplicate sprite setting from reconcile (should only happen once)
@@ -281,9 +286,9 @@ function renderPreview() {
   const ox = Math.floor((els.preview.width - w * scale) / 2);
   const oy = Math.floor((els.preview.height - h * scale) / 2);
 
-  // Use sprite's palette if available, otherwise use the selected palette for current forge
+  // Use sprite's palette if available, otherwise use palette from frames, then selected palette
   const selectedPalette = palettes.find(p => p.name === currentPaletteName)?.colors;
-  const palette = sprite?.palette ?? selectedPalette ?? (palettes[0]?.colors || []);
+  const palette = sprite?.palette ?? currentPaletteColors ?? selectedPalette ?? (palettes[0]?.colors || []);
 
   // Get the best available frame
   let pixels = null;
@@ -488,6 +493,7 @@ async function forgeSprite() {
   framePixels.clear();
   lastWorkflowId = null;
   jobs.clear();
+  currentPaletteColors = null;
   renderJobs();
   enableDownloadIfReady();
   els.previewOverlay.classList.remove('hidden');
@@ -706,6 +712,11 @@ function handleSpooledEvent(evt) {
 
     if (data.result && data.result.kind === 'frame') {
       framePixels.set(data.result.frameIndex, data.result.pixels);
+      
+      // Capture palette from first frame result (all frames use same palette)
+      if (!currentPaletteColors && data.result.palette) {
+        currentPaletteColors = data.result.palette;
+      }
       
       // Mark the corresponding frame job as completed by matching frame index
       const frameKey = `frame-${data.result.frameIndex}`;
