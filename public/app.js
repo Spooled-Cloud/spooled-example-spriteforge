@@ -180,6 +180,21 @@ async function reconcileOnce({ includeResult }) {
           framePixels.set(item.result.frameIndex, item.result.pixels);
         }
         if (item.result.kind === 'sprite') {
+          // Prevent duplicate sprite setting from reconcile (should only happen once)
+          if (sprite && sprite.frames?.length) {
+            console.log('[sprite] Ignoring reconcile sprite (already have sprite):', {
+              existingSeed: sprite.seed,
+              incomingSeed: item.result.seed,
+            });
+            continue;
+          }
+          console.log('[sprite] Setting sprite from reconcile:', {
+            jobId: item.jobId,
+            seed: item.result.seed,
+            paletteName: item.result.paletteName,
+            palettePreview: item.result.palette?.slice(0, 3),
+            frameCount: item.result.frameCount,
+          });
           sprite = {
             seed: item.result.seed,
             animation: item.result.animation,
@@ -666,6 +681,12 @@ function handleSpooledEvent(evt) {
     // overwrite the current sprite with old data (different palette, etc.).
     if (!jobs.has(data.jobId)) {
       // This event is from a previous forge or unknown job - ignore it
+      console.log('[sprite] Ignoring stale job.completed event:', {
+        jobId: data.jobId,
+        kind: data.result?.kind,
+        seed: data.result?.seed,
+        paletteName: data.result?.paletteName,
+      });
       return;
     }
     
@@ -715,6 +736,21 @@ function handleSpooledEvent(evt) {
     }
 
     if (data.result && data.result.kind === 'sprite') {
+      // Prevent duplicate sprite events from overwriting (should only happen once)
+      if (sprite && sprite.frames?.length) {
+        console.log('[sprite] Ignoring duplicate sprite event (already have sprite):', {
+          existingSeed: sprite.seed,
+          incomingSeed: data.result.seed,
+        });
+        return;
+      }
+      console.log('[sprite] Setting sprite from event:', {
+        jobId: data.jobId,
+        seed: data.result.seed,
+        paletteName: data.result.paletteName,
+        palettePreview: data.result.palette?.slice(0, 3),
+        frameCount: data.result.frameCount,
+      });
       sprite = {
         seed: data.result.seed,
         animation: data.result.animation,
