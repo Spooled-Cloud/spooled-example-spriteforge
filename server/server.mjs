@@ -492,6 +492,8 @@ async function startRealtime() {
     const realtime = /** @type {SpooledRealtime} */ (await client.realtime({ type: 'websocket' }));
 
     realtime.onStateChange((state) => {
+      // eslint-disable-next-line no-console
+      console.log(`[realtime] state changed: ${state}`);
       broadcastAll('server.realtime', { state, at: nowIso() });
     });
 
@@ -576,6 +578,8 @@ async function startRealtime() {
             ...(result !== undefined ? { result } : {}),
           },
         };
+        // eslint-disable-next-line no-console
+        console.log(`[broadcast] → session ${sessionId?.slice(0,8)} event=${normalizedType} job=${jobId?.slice(0,8)}`);
         broadcastSession(sessionId, 'spooled', {
           ...transformedEvent,
           meta: {
@@ -624,7 +628,7 @@ async function startRealtime() {
     // doesn't respond to subscribe commands in the SDK's expected format.
 
     // eslint-disable-next-line no-console
-    console.log(`Spooled realtime connected (WebSocket) to ${SPOOLED_WS_URL}`);
+    console.log(`✅ Spooled realtime connected (WebSocket) to ${SPOOLED_WS_URL}/api/v1/ws`);
 
     return realtime;
   } catch (error) {

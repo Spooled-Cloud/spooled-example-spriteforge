@@ -200,6 +200,8 @@ async function reconcileOnce({ includeResult }) {
       els.previewStatus.textContent = 'Complete!';
       enableDownloadIfReady();
       setStep(5);
+      // Mark step 5 (assemble) as completed
+      if (els.steps[4]) els.steps[4].classList.add('completed');
       // ensure UI shows green everywhere
       for (const [, j] of jobs) j.status = 'completed';
       stopReconcile();
