@@ -506,6 +506,10 @@ async function startRealtime() {
       const eventType = event.type;
       const normalizedType = eventType.replace(/([a-z])([A-Z])/g, '$1.$2').toLowerCase();
 
+      // Log all received events for debugging (uncomment in production if events aren't showing)
+      // eslint-disable-next-line no-console
+      console.log(`[realtime] ${eventType} job=${jobId?.slice?.(0,8) || 'n/a'} queue=${queueName || 'n/a'} tracked=${jobIdToSession.has(jobId)}`);
+
       // Many realtime events only include identifiers; the authoritative status/retry/result live on the Job record.
       // Fetch on completion/failure to make the UI accurate and to avoid missing fields.
       // Only fetch full job details for SpriteForge-tracked jobs or the public demo queue.
@@ -582,6 +586,16 @@ async function startRealtime() {
         return;
       }
 
+      // For job events where we have a jobId but it's not tracked yet (e.g., created in another context)
+      // Still broadcast if it matches our demo queues
+      if (
+        typeof jobId === 'string' &&
+        (queueName === QUEUE_FRAMES || queueName === QUEUE_ASSEMBLE || queueName === QUEUE_PUBLIC)
+      ) {
+        // eslint-disable-next-line no-console
+        console.log(`[realtime] Untracked job event for demo queue: ${eventType} job=${jobId.slice(0,8)}`);
+      }
+
       // Global events: queue pause/resume, schedule triggers, etc.
       if (
         normalizedType.startsWith('queue.') ||
@@ -610,7 +624,7 @@ async function startRealtime() {
     // doesn't respond to subscribe commands in the SDK's expected format.
 
     // eslint-disable-next-line no-console
-    console.log('Spooled realtime connected (WebSocket)');
+    console.log(`Spooled realtime connected (WebSocket) to ${SPOOLED_WS_URL}`);
 
     return realtime;
   } catch (error) {
@@ -852,6 +866,9 @@ async function handleForge(req, res) {
     jobIdToSession.set(j.jobId, { sessionId, createdAt });
     jobIdToKey.set(j.jobId, j.key);
   }
+  
+  // eslint-disable-next-line no-console
+  console.log(`[forge] Tracking ${created.jobIds.length} jobs for session ${sessionId.slice(0,8)}: ${created.jobIds.map(j => j.jobId.slice(0,8)).join(', ')}`);
 
   // Update stats
   stats.totalWorkflows++;
