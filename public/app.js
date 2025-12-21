@@ -70,6 +70,7 @@ let lastWorkflowId = null;
 let animFrame = 0;
 let animT0 = 0;
 let publicSpriteMsg = null;
+let currentPaletteName = null; // Track the selected palette for current forge
 
 /** @type {Map<string, { key: string; status: string; retryCount: number; queueName?: string }>} */
 const jobs = new Map();
@@ -280,7 +281,9 @@ function renderPreview() {
   const ox = Math.floor((els.preview.width - w * scale) / 2);
   const oy = Math.floor((els.preview.height - h * scale) / 2);
 
-  const palette = sprite?.palette ?? (palettes[0]?.colors || []);
+  // Use sprite's palette if available, otherwise use the selected palette for current forge
+  const selectedPalette = palettes.find(p => p.name === currentPaletteName)?.colors;
+  const palette = sprite?.palette ?? selectedPalette ?? (palettes[0]?.colors || []);
 
   // Get the best available frame
   let pixels = null;
@@ -497,6 +500,9 @@ async function forgeSprite() {
   const animation = els.animation.value || 'walk';
   const frameCount = Number(els.frames.value || 8);
   const failChance = Number(els.chaos.value || 0) / 100;
+  
+  // Store the selected palette name so preview uses correct colors during generation
+  currentPaletteName = paletteName;
 
   els.previewMeta.textContent = 'Creating workflow…';
   els.previewStatus.textContent = 'Creating…';
