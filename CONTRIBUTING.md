@@ -144,4 +144,3 @@ The `spriteforge.mjs` module uses a seeded random generator to create determinis
 - Check [Spooled Documentation](https://spooled.cloud/docs)
 
 Thank you for contributing! 🎨
-

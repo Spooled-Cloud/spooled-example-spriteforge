@@ -377,4 +377,3 @@ fly logs
 - [GitHub Issues](https://github.com/spooled-cloud/spooled-example-spriteforge/issues)
 - [Spooled Documentation](https://spooled.cloud/docs)
 - [Spooled Discord](https://discord.gg/spooled)
-
