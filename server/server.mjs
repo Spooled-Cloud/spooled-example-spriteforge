@@ -22,6 +22,11 @@ if (!SPOOLED_API_KEY) {
   process.exit(1);
 }
 
+// How often to run a health check that verifies API connectivity
+const HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+// How many consecutive health check failures before auto-restart
+const MAX_HEALTH_CHECK_FAILURES = 3;
+
 const SPOOLED_BASE_URL = process.env.SPOOLED_BASE_URL || 'https://api.spooled.cloud';
 const SPOOLED_WS_URL = process.env.SPOOLED_WS_URL || 'wss://api.spooled.cloud';
 
@@ -70,7 +75,68 @@ const stats = {
   totalWorkflows: 0,
   totalJobs: 0,
   cleanedMappings: 0,
+  healthCheckFailures: 0,
+  lastHealthCheckAt: null,
+  lastHealthCheckStatus: 'unknown',
+  circuitBreakerState: 'unknown',
 };
+
+/**
+ * Periodic health check that verifies API connectivity.
+ * If the API becomes unreachable, this can trigger alerts or auto-recovery.
+ */
+function startHealthCheck() {
+  setInterval(async () => {
+    try {
+      // Try to list queues as a lightweight health check
+      await client.queues.list();
+      
+      stats.lastHealthCheckAt = nowIso();
+      stats.lastHealthCheckStatus = 'healthy';
+      stats.healthCheckFailures = 0;
+      
+      // Also check circuit breaker state
+      try {
+        const cbStats = client.getCircuitBreakerStats();
+        stats.circuitBreakerState = cbStats.state;
+        
+        // Log if circuit breaker is not in normal state
+        if (cbStats.state !== 'CLOSED') {
+          // eslint-disable-next-line no-console
+          console.warn(`[health] Circuit breaker state: ${cbStats.state}, failures: ${cbStats.failureCount}`);
+        }
+      } catch {
+        // SDK might not expose this, ignore
+      }
+    } catch (err) {
+      stats.healthCheckFailures++;
+      stats.lastHealthCheckAt = nowIso();
+      stats.lastHealthCheckStatus = `failed: ${err?.message || err}`;
+      
+      // eslint-disable-next-line no-console
+      console.error(`[health] API health check failed (${stats.healthCheckFailures}/${MAX_HEALTH_CHECK_FAILURES}):`, err?.message || err);
+      
+      // If we've failed too many times, try to reset the circuit breaker
+      if (stats.healthCheckFailures >= MAX_HEALTH_CHECK_FAILURES) {
+        // eslint-disable-next-line no-console
+        console.warn('[health] Too many consecutive failures, attempting circuit breaker reset...');
+        try {
+          client.resetCircuitBreaker();
+          // eslint-disable-next-line no-console
+          console.log('[health] Circuit breaker reset');
+        } catch {
+          // ignore
+        }
+        
+        // Also restart realtime connection
+        scheduleRealtimeRestart();
+      }
+    }
+  }, HEALTH_CHECK_INTERVAL_MS);
+  
+  // eslint-disable-next-line no-console
+  console.log(`[health] Health check started (interval: ${HEALTH_CHECK_INTERVAL_MS / 1000}s)`);
+}
 
 /**
  * Periodically clean up old session mappings to prevent memory leaks
@@ -915,11 +981,30 @@ async function handleForge(req, res) {
       },
     });
   } catch (workflowError) {
+    // Log detailed error info for debugging
+    const errorInfo = typeof workflowError?.toJSON === 'function' 
+      ? workflowError.toJSON() 
+      : { message: workflowError?.message, code: workflowError?.code, statusCode: workflowError?.statusCode };
+    
     // eslint-disable-next-line no-console
-    console.error(
-      'Workflow creation failed:',
-      typeof workflowError?.toJSON === 'function' ? workflowError.toJSON() : (workflowError?.message || workflowError)
-    );
+    console.error('Workflow creation failed:', errorInfo);
+    
+    // Log circuit breaker state when errors occur
+    try {
+      const cbStats = client.getCircuitBreakerStats();
+      // eslint-disable-next-line no-console
+      console.error('  Circuit breaker state:', cbStats.state, 'failures:', cbStats.failureCount);
+      stats.circuitBreakerState = cbStats.state;
+    } catch {
+      // ignore
+    }
+    
+    // If this is an auth error, update health status
+    if (workflowError?.statusCode === 401) {
+      stats.healthCheckFailures++;
+      stats.lastHealthCheckStatus = `auth_failed: ${workflowError?.message}`;
+    }
+    
     throw workflowError;
   }
 
@@ -996,9 +1081,18 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
 
     if (method === 'GET' && url.pathname === '/health') {
-      sendJson(res, 200, { 
-        ok: true, 
+      // Determine health status based on recent API connectivity
+      const isHealthy = stats.healthCheckFailures < MAX_HEALTH_CHECK_FAILURES;
+      
+      sendJson(res, isHealthy ? 200 : 503, { 
+        ok: isHealthy, 
         at: nowIso(),
+        api: {
+          status: stats.lastHealthCheckStatus,
+          lastCheckAt: stats.lastHealthCheckAt,
+          consecutiveFailures: stats.healthCheckFailures,
+          circuitBreakerState: stats.circuitBreakerState,
+        },
         stats: {
           activeSessions: sseClientsBySession.size,
           trackedJobs: jobIdToSession.size,
@@ -1071,6 +1165,9 @@ const server = http.createServer(async (req, res) => {
 
   // Start periodic cleanup of session mappings to prevent memory leaks
   startSessionCleanup();
+  
+  // Start periodic health check to detect API connectivity issues
+  startHealthCheck();
 
   server.listen(PORT, HOST, () => {
     // eslint-disable-next-line no-console
