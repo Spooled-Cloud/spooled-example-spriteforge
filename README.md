@@ -111,7 +111,7 @@ docker run -p 3000:3000 \
 │   ───────                     ──────                    ─────────────   │
 │                                                                         │
 │   ┌──────────┐  click    ┌──────────────┐  create    ┌──────────────┐   │
-│   │   UI     │ ────────► │   Express    │  ────────► │   Workflow   │   │
+│   │   UI     │ ────────► │   Node.js    │  ────────► │   Workflow   │   │
 │   └──────────┘           │   Server     │            │   + Jobs     │   │
 │        ▲                 └──────────────┘            └──────────────┘   │
 │        │                        │                           │           │
@@ -294,7 +294,7 @@ spooled-example-spriteforge/
 │   ├── styles.css              # Styles
 │   └── app.js                  # Frontend logic
 ├── server/
-│   ├── server.mjs              # Express server + workers
+│   ├── server.mjs              # HTTP server + workers
 │   └── spriteforge.mjs         # Pixel art generation
 ├── .env.example                # Environment template
 ├── Dockerfile                  # Multi-stage Docker build

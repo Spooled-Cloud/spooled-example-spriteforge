@@ -163,10 +163,19 @@ function startSessionCleanup() {
       }
     }
 
+    // Evict stale rate-limit buckets so the map doesn't grow unboundedly
+    // with unique IPs over time.
+    for (const [ip, bucket] of ipBuckets) {
+      if (bucket.last < cutoff) {
+        ipBuckets.delete(ip);
+        cleaned++;
+      }
+    }
+
     if (cleaned > 0) {
       stats.cleanedMappings += cleaned;
       // eslint-disable-next-line no-console
-      console.log(`[cleanup] Removed ${cleaned} stale session mappings (total cleaned: ${stats.cleanedMappings})`);
+      console.log(`[cleanup] Removed ${cleaned} stale session/rate-limit mappings (total cleaned: ${stats.cleanedMappings})`);
     }
   }, SESSION_CLEANUP_INTERVAL_MS);
 }
