@@ -259,8 +259,10 @@ function stopReconcile() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function drawPixels(ctx, pixels, palette, scale, ox, oy) {
+  if (!Array.isArray(pixels)) return;
   for (let y = 0; y < pixels.length; y++) {
     const row = pixels[y];
+    if (typeof row !== 'string') continue;
     for (let x = 0; x < row.length; x++) {
       const ch = row[x];
       if (ch === '.') continue;
@@ -829,7 +831,14 @@ function renderPublicSprite(msg) {
   if (!r.frames || !r.frames.length) return;
 
   const palette = r.palette || palettes[0]?.colors || [];
-  const pixels = r.frames[(Date.now() >> 7) % r.frames.length];
+  // Animate by stepping every ~128ms. Using `Date.now() >> 7` would coerce
+  // the timestamp to an int32 and, since 2026, Date.now() exceeds INT32_MAX —
+  // the bitwise op produces a negative number, then `% length` returns a
+  // negative remainder, indexing past the array (undefined) and crashing
+  // drawPixels. Use Math.floor on a regular Number to stay positive.
+  const idx = Math.floor(Date.now() / 128) % r.frames.length;
+  const pixels = r.frames[idx];
+  if (!pixels) return;
   const scale = 5;
   const ox = Math.floor((canvas.width - r.width * scale) / 2);
   const oy = Math.floor((canvas.height - r.height * scale) / 2);
