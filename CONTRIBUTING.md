@@ -22,13 +22,16 @@ git clone https://github.com/YOUR_USERNAME/spooled-example-spriteforge.git
 cd spooled-example-spriteforge
 
 # Install dependencies
-npm install
+npm ci
 
 # Copy environment template
 cp .env.example .env
 # Edit .env and add your API key
 
-# Start development server
+# Load .env into this shell (Node does not auto-load it), then start
+set -a
+. ./.env
+set +a
 npm run dev
 ```
 
@@ -64,9 +67,10 @@ chore: update dependencies
 
 ### Testing Your Changes
 
-1. **Local testing**: Run `npm run dev` and test in browser
-2. **Docker testing**: Run `docker compose up --build`
-3. **Chaos mode**: Set chaos slider to 30%+ to test retry behavior
+1. **Syntax checks**: Run `node --check server/server.mjs server/spriteforge.mjs` (the same source check CI runs)
+2. **Local testing**: Run `npm run dev` and test in a browser (`dev` and `start` currently run the same server; there is no file watcher)
+3. **Docker testing**: Run `docker compose up --build`
+4. **Chaos mode**: Set the chaos slider to 30%+ to exercise retry behavior
 
 ## Pull Request Process
 
@@ -109,7 +113,7 @@ Before/After screenshots if applicable.
 │   ├── styles.css    # All styles
 │   └── app.js        # Frontend JavaScript
 ├── server/
-│   ├── server.mjs    # Express server, SSE, workers
+│   ├── server.mjs    # Native Node HTTP server, SSE, Spooled SDK, workers
 │   └── spriteforge.mjs # Pixel art generation logic
 ├── k8s/              # Kubernetes manifests
 └── .github/          # CI/CD workflows
@@ -126,9 +130,9 @@ The server starts 3 worker types:
 
 ### Real-time Events
 
-Event flow: Spooled → WebSocket → Server → SSE → Browser
+Primary event flow: Spooled → WebSocket → server → SSE → browser.
 
-Sessions are tracked to route events to the correct browser tab.
+Sessions and job IDs are tracked in memory to route events to the correct browser tab. A session-scoped `POST /api/jobs/batch` poller reconciles missed realtime updates, so changes to event handling should test both paths.
 
 ### Pixel Art Generation
 

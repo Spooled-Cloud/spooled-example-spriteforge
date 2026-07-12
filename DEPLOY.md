@@ -23,7 +23,7 @@ This guide covers deploying SpriteForge to production. Choose the method that fi
 
 - **Spooled API Key**: Get one from [dashboard.spooled.cloud](https://dashboard.spooled.cloud)
 - **Docker** (for container deployments)
-- **Cloudflare Tunnel Token** (for production with Cloudflare)
+- **Cloudflare Tunnel Token** (only when using `docker-compose.prod.yml` with its bundled tunnel)
 
 ### Recommended
 
@@ -82,7 +82,7 @@ In Cloudflare Zero Trust dashboard:
 
 ## Kubernetes
 
-Production-ready Kubernetes manifests using Kustomize.
+Kubernetes manifests using Kustomize, with probes, resource limits, ingress/TLS integration, a PodDisruptionBudget, and a deliberately single-replica HPA.
 
 ### Directory Structure
 
@@ -110,12 +110,12 @@ k8s/
 
 ```bash
 # Create namespace
-kubectl create namespace spriteforge
+kubectl apply -f k8s/base/namespace.yaml
 
-# Create secret with your API key
-kubectl create secret generic spriteforge-secrets \
+# Create the secret referenced by the Deployment
+kubectl create secret generic spooled-example-spriteforge-secrets \
   --from-literal=SPOOLED_API_KEY=sp_live_your_key \
-  -n spriteforge
+  --namespace spooled-example-spriteforge
 ```
 
 ### 2. Deploy Production Overlay
@@ -128,31 +128,35 @@ kubectl apply -k k8s/overlays/production --dry-run=client -o yaml
 kubectl apply -k k8s/overlays/production
 
 # Check rollout
-kubectl rollout status deployment/spooled-example-spriteforge -n spriteforge
+kubectl rollout status deployment/spooled-example-spriteforge \
+  --namespace spooled-example-spriteforge
 ```
 
 ### 3. Verify Deployment
 
 ```bash
 # Check pods
-kubectl get pods -n spriteforge
+kubectl get pods --namespace spooled-example-spriteforge
 
 # Check service
-kubectl get svc -n spriteforge
+kubectl get svc --namespace spooled-example-spriteforge
 
 # Check ingress
-kubectl get ingress -n spriteforge
+kubectl get ingress --namespace spooled-example-spriteforge
 
 # View logs
-kubectl logs -f deployment/spooled-example-spriteforge -n spriteforge
+kubectl logs -f deployment/spooled-example-spriteforge \
+  --namespace spooled-example-spriteforge
 ```
 
 ### 4. DNS & TLS
 
 The included Ingress manifest expects:
 - **nginx ingress controller**
-- **cert-manager** with `letsencrypt-prod` ClusterIssuer
+- **cert-manager** with a `letsencrypt-prod` ClusterIssuer
 - DNS A/CNAME record pointing `example.spooled.cloud` to your ingress
+
+The production overlay intentionally remains at one replica: both the Deployment and HPA are pinned to `1`. The application keeps SSE clients and job/session routing in process memory, so raising the replica count without sticky routing and shared state can lose or misroute updates.
 
 ---
 
@@ -250,6 +254,7 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 |----------|---------|-------------|
 | `SPOOLED_BASE_URL` | `https://api.spooled.cloud` | Spooled REST API |
 | `SPOOLED_WS_URL` | `wss://api.spooled.cloud` | Spooled WebSocket |
+| `DEBUG` | unset | Set to `true` for SDK debug logging |
 
 ### Optional - Server
 
@@ -257,7 +262,7 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 |----------|---------|-------------|
 | `PORT` | `3000` | HTTP port |
 | `HOST` | `0.0.0.0` | Bind address |
-| `NODE_ENV` | `production` | Environment |
+| `NODE_ENV` | unset by the app | Runtime environment; Docker/Compose/Kubernetes set `production` |
 
 ### Optional - Queues
 
@@ -271,24 +276,33 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WORKER_CONCURRENCY_FRAMES` | `8` | Parallel frame workers |
-| `WORKER_CONCURRENCY_ASSEMBLE` | `2` | Parallel assemble workers |
+| `WORKER_CONCURRENCY_FRAMES` | `8` | Concurrent frame jobs |
+| `WORKER_CONCURRENCY_ASSEMBLE` | `2` | Concurrent assemble jobs |
+| `WORKER_CONCURRENCY_PUBLIC` | `1` | Concurrent scheduled public-sprite jobs |
 
 ### Optional - Schedule
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENABLE_PUBLIC_SCHEDULE` | `true` | Enable "Sprite of the Minute" |
-| `PUBLIC_SCHEDULE_CRON` | `0 * * * * *` | Cron expression |
+| `PUBLIC_SCHEDULE_NAME` | `spriteforge-public-sprite` | Idempotent schedule lookup name |
+| `PUBLIC_SCHEDULE_CRON` | `0 * * * * *` | Six-field cron expression (every minute) |
 | `PUBLIC_SCHEDULE_TIMEZONE` | `UTC` | Timezone |
 
 ### Optional - Cleanup
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JOB_RETENTION_HOURS` | `24` | Hours until demo jobs expire and are auto-cleaned |
+| `JOB_RETENTION_HOURS` | `24` | Hours until interactive workflow jobs reach their explicit expiration |
 
-> **Tip**: For high-traffic public demos, set `JOB_RETENTION_HOURS=1` to clean up jobs faster.
+### Optional - Production Compose
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLOUDFLARE_TUNNEL_TOKEN` | none | Required by `docker-compose.prod.yml` for the bundled tunnel |
+| `SPRITEFORGE_IMAGE` | `ghcr.io/spooled-cloud/spooled-example-spriteforge:latest` | Image override for production Compose |
+
+> **Retention note:** SpriteForge sets `expiresAt` on interactive workflow jobs. The Spooled backend checks cleanup every five minutes; pending, scheduled, failed, and dead-letter jobs can be removed after explicit expiration, while completed/cancelled jobs and completed/failed/cancelled workflows follow organization retention limits.
 
 ---
 
@@ -298,7 +312,8 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 
 ```bash
 curl http://localhost:3000/health
-# Returns: 200 OK
+# Returns 200 while fewer than three consecutive periodic Spooled API checks have failed.
+# The JSON includes API/circuit-breaker status plus session, job, workflow, and cleanup counters.
 ```
 
 ### Docker Health Check
@@ -322,7 +337,8 @@ The deployment includes:
 docker compose logs -f spriteforge
 
 # Kubernetes
-kubectl logs -f deployment/spooled-example-spriteforge -n spriteforge
+kubectl logs -f deployment/spooled-example-spriteforge \
+  --namespace spooled-example-spriteforge
 
 # Fly.io
 fly logs
@@ -334,15 +350,15 @@ fly logs
 
 ### Container won't start
 
-1. Check API key is set: `echo $SPOOLED_API_KEY`
-2. Check Spooled is reachable: `curl https://api.spooled.cloud/health`
-3. View container logs
+1. Confirm `SPOOLED_API_KEY` is defined without printing its value (for example, `test -n "$SPOOLED_API_KEY"`).
+2. Check Spooled is reachable: `curl https://api.spooled.cloud/health`.
+3. View container logs.
 
 ### No real-time events
 
-1. Verify WebSocket URL is correct
-2. Check browser console for SSE connection errors
-3. Verify API key has real-time permissions
+1. Verify `SPOOLED_WS_URL` is correct.
+2. Check server logs for the Spooled WebSocket state and browser diagnostics for the SpriteForge SSE connection.
+3. Confirm `POST /api/jobs/batch` succeeds; the browser uses scoped polling to reconcile updates missed by realtime delivery.
 
 ### Cloudflare Tunnel not connecting
 
@@ -368,7 +384,7 @@ fly logs
 1. **API Key**: Never expose in browser; stays server-side
 2. **Dedicated Org**: Use separate organization for public demo
 3. **Plan Limits**: Set job/workflow limits to prevent abuse
-4. **Rate Limiting**: Consider adding reverse proxy rate limits
+4. **Rate Limiting**: The app has in-memory per-IP limits for forge and reconciliation requests; add reverse-proxy limits for stronger or multi-replica enforcement.
 
 ---
 

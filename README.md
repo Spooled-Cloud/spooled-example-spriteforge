@@ -35,7 +35,9 @@
 
 ## What is SpriteForge?
 
-SpriteForge is a **real-time pixel art sprite generator** that demonstrates the power of [Spooled Cloud](https://spooled.cloud) — a distributed job queue with workflows, real-time events, and automatic retries.
+SpriteForge is a **real-time pixel art sprite generator** that demonstrates [Spooled Cloud](https://spooled.cloud) workflows, workers, schedules, retries, and realtime events.
+
+**Current release:** [`v1.0.12`](https://github.com/spooled-cloud/spooled-example-spriteforge/releases/tag/v1.0.12)
 
 **Try it live:** [example.spooled.cloud](https://example.spooled.cloud)
 
@@ -45,8 +47,8 @@ SpriteForge is a **real-time pixel art sprite generator** that demonstrates the 
 |---------|---------------|
 | **Workflows (DAG)** | Each sprite is a workflow with parallel frame jobs + dependent assemble job |
 | **Workers** | 3 worker types process frames, assemble sprites, and generate public sprites |
-| **Real-time Events** | WebSocket events stream job status to browser via SSE |
-| **Automatic Retries** | "Chaos mode" simulates failures — watch jobs retry automatically |
+| **Realtime + Reconciliation** | Spooled WebSocket events are forwarded to the browser over SSE; scoped polling recovers missed updates |
+| **Automatic Retries** | "Chaos mode" simulates transient failures on frame jobs so Spooled retries are visible |
 | **Schedules** | "Sprite of the Minute" generated via cron schedule |
 
 ---
@@ -72,9 +74,12 @@ cp .env.example .env
 # SPOOLED_API_KEY=sp_live_your_key_here
 
 # Install dependencies
-npm install
+npm ci
 
-# Start the development server
+# Load .env into this shell (Node does not auto-load it), then start
+set -a
+. ./.env
+set +a
 npm run dev
 ```
 
@@ -95,7 +100,7 @@ Or run directly:
 ```bash
 docker run -p 3000:3000 \
   -e SPOOLED_API_KEY=sp_live_your_key \
-  ghcr.io/spooled-cloud/spooled-example-spriteforge:latest
+  ghcr.io/spooled-cloud/spooled-example-spriteforge:v1.0.12
 ```
 
 ---
@@ -147,31 +152,9 @@ START ──► [frame-0] [frame-1] [frame-2] ... [frame-N] ──► [assemble]
 
 ## Environment Variables
 
-### Required
+`SPOOLED_API_KEY` is the only variable required by the application. The production Compose stack additionally requires `CLOUDFLARE_TUNNEL_TOKEN`.
 
-| Variable | Description |
-|----------|-------------|
-| `SPOOLED_API_KEY` | Your Spooled API key |
-
-### Optional
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SPOOLED_BASE_URL` | `https://api.spooled.cloud` | Spooled REST API URL |
-| `SPOOLED_WS_URL` | `wss://api.spooled.cloud` | Spooled WebSocket URL |
-| `PORT` | `3000` | Server port |
-| `HOST` | `0.0.0.0` | Server host |
-| `QUEUE_FRAMES` | `spriteforge-frames` | Frame processing queue |
-| `QUEUE_ASSEMBLE` | `spriteforge-assemble` | Sprite assembly queue |
-| `QUEUE_PUBLIC` | `spriteforge-public` | Public sprite queue |
-| `WORKER_CONCURRENCY_FRAMES` | `8` | Concurrent frame jobs |
-| `WORKER_CONCURRENCY_ASSEMBLE` | `2` | Concurrent assemble jobs |
-| `ENABLE_PUBLIC_SCHEDULE` | `true` | Enable "Sprite of the Minute" |
-| `PUBLIC_SCHEDULE_CRON` | `0 * * * * *` | Cron for public sprites |
-| `PUBLIC_SCHEDULE_TIMEZONE` | `UTC` | Timezone for schedule |
-| `JOB_RETENTION_HOURS` | `24` | Auto-expire jobs after N hours |
-
-See [.env.example](.env.example) for a complete template.
+See [DEPLOY.md#environment-variables](DEPLOY.md#environment-variables) for the canonical variable table and [.env.example](.env.example) for a copyable template.
 
 ---
 
@@ -181,12 +164,12 @@ See [.env.example](.env.example) for a complete template.
 
 ### Docker Image
 
-Built and pushed to GHCR on every push to `main`:
+The CI workflow publishes multi-architecture (`linux/amd64`, `linux/arm64`) images to GHCR. Pushes to `main` publish `latest` and a short commit SHA tag; release tags publish the matching version and refresh `latest`:
 
-```
+```text
 ghcr.io/spooled-cloud/spooled-example-spriteforge:latest
-ghcr.io/spooled-cloud/spooled-example-spriteforge:sha-<commit>
-ghcr.io/spooled-cloud/spooled-example-spriteforge:v1.0.0  # tagged releases
+ghcr.io/spooled-cloud/spooled-example-spriteforge:<short-commit-sha>
+ghcr.io/spooled-cloud/spooled-example-spriteforge:v1.0.12
 ```
 
 ### Docker Compose (Production)
@@ -208,9 +191,10 @@ This starts:
 
 ```bash
 # Create secret
-kubectl create secret generic spriteforge-secrets \
+kubectl apply -f k8s/base/namespace.yaml
+kubectl create secret generic spooled-example-spriteforge-secrets \
   --from-literal=SPOOLED_API_KEY=sp_live_your_key \
-  -n spriteforge
+  --namespace spooled-example-spriteforge
 
 # Deploy
 kubectl apply -k k8s/overlays/production
@@ -220,18 +204,20 @@ kubectl apply -k k8s/overlays/production
 - Deployment with liveness/readiness probes
 - Service (ClusterIP)
 - Ingress (nginx + cert-manager TLS)
-- HorizontalPodAutoscaler
+- HorizontalPodAutoscaler pinned to one replica (documents the CPU target but does not scale above one)
 - PodDisruptionBudget
 - ServiceAccount + ConfigMap
 
-### Platform Quick Deploy
+### Platform Deployment Starting Points
 
-| Platform | Steps |
-|----------|-------|
-| **Railway** | Fork repo → New project → Connect GitHub → Add `SPOOLED_API_KEY` → Deploy |
+These are high-level manual starting points, not tested one-click deployments. This repository does not include Railway, Render, or DigitalOcean manifests; confirm each platform's Docker build, start command, health check, port, persistence, and secret settings before calling a deployment production-ready.
+
+| Platform | Starting point |
+|----------|----------------|
+| **Railway** | Connect the repository, select the Docker build, configure health/port settings, and add `SPOOLED_API_KEY` |
 | **Fly.io** | `fly launch` → `fly secrets set SPOOLED_API_KEY=...` → `fly deploy` |
-| **Render** | New Web Service → Docker → Add `SPOOLED_API_KEY` → Deploy |
-| **DigitalOcean** | New App → GitHub → Auto-detect Docker → Deploy |
+| **Render** | Create a Docker Web Service, configure health/port settings, and add `SPOOLED_API_KEY` |
+| **DigitalOcean** | Create an App from GitHub, confirm Docker/health/port settings, and add `SPOOLED_API_KEY` |
 
 ---
 
@@ -265,15 +251,31 @@ Content-Type: application/json
 
 ### Event Stream (SSE)
 
-```
+```text
 GET /api/events?sessionId=<uuid>
 ```
 
-Streams real-time events:
-- `hello` - Connection established, includes palettes and session info
-- `spooled` - Job lifecycle events (created, started, completed, failed)
-- `public.sprite` - New public sprite generated
-- `server.realtime` - Server's connection to Spooled status
+Streams realtime events:
+- `hello` - connection established; includes palettes, queues, session info, and the latest public sprite
+- `ping` - 15-second keepalive
+- `spooled` - job lifecycle or global Spooled events
+- `public.sprite` - new public sprite generated
+- `server.realtime` - server-to-Spooled WebSocket state
+
+### Reconcile Jobs
+
+```text
+POST /api/jobs/batch
+Content-Type: application/json
+
+{
+  "sessionId": "uuid",
+  "jobIds": ["job-id"],
+  "includeResult": true
+}
+```
+
+Returns status for at most 50 job IDs already associated with that in-memory session. The browser polls this endpoint while a forge is active to recover updates or results missed by realtime delivery.
 
 ---
 
@@ -310,7 +312,7 @@ spooled-example-spriteforge/
 ### Scripts
 
 ```bash
-npm run dev      # Start development server with hot reload
+npm run dev      # Start the server (same command as npm start; no file watcher)
 npm start        # Start production server
 ```
 
@@ -333,26 +335,21 @@ SPOOLED_WS_URL=ws://localhost:8080
 
 ### Why One Replica?
 
-The demo runs as **1 replica by default** because:
-- SSE connections are stateful
-- Session events route to the correct client
-- No additional infrastructure (Redis for sessions) required
+The Kubernetes manifests pin both the Deployment and HPA to **one replica**. SSE clients, job-to-session routing, workflow mappings, rate-limit buckets, and the latest public sprite are process-local.
 
-For multi-replica deployment, you'd need:
-- Sticky sessions (ingress annotation)
-- Or shared session store (Redis)
+A multi-replica deployment therefore needs more than worker scaling: use sticky sessions for browser requests and move routing/state to shared infrastructure (for example Redis), or split the stateless HTTP frontend from singleton event-routing/schedule responsibilities.
 
 ### Job Cleanup (Handling Many Users)
 
 When 100+ users test the demo, jobs and workflows accumulate. SpriteForge handles this automatically:
 
-**1. Job Expiration (Auto-cleanup)**
-- All demo jobs have `expires_at` set to 24 hours (configurable via `JOB_RETENTION_HOURS`)
-- Spooled backend automatically removes expired jobs every 30 seconds
+**1. Job Expiration and Retention**
+- Interactive workflow jobs receive an `expiresAt` timestamp 24 hours in the future by default (`JOB_RETENTION_HOURS`).
+- The Spooled backend cleanup task runs every five minutes. Explicit expiration removes pending, scheduled, failed, or dead-letter jobs after `expiresAt`; completed/cancelled jobs use organization retention instead.
 
 **2. Workflow Cleanup**
-- Completed/failed workflows are cleaned based on plan tier retention
-- Free tier: 3 days, Starter: 14 days, Pro: 30 days, Enterprise: 90 days
+- Completed, failed, or cancelled workflows use organization job-retention limits.
+- Current built-in defaults are Free 3 days, Starter 14 days, Pro 30 days, and Enterprise 90 days; organization overrides may change them.
 
 **3. In-Memory Cleanup**
 - Session mappings (for routing events) are cleaned every 10 minutes
@@ -370,12 +367,14 @@ curl http://localhost:3000/health
 # Returns stats: { activeSessions, trackedJobs, trackedWorkflows, totalWorkflows, totalJobs }
 ```
 
-### Security Considerations
+### SDK and Security Notes
+
+SpriteForge `v1.0.12` declares `@spooled/sdk` with the compatible range `^1.0.26`; the committed `package-lock.json` currently resolves that dependency to exactly `1.0.26`, so `npm ci` reproduces that resolution. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
 
 When deploying publicly:
-- Use a **dedicated Spooled organization** for the demo
-- Set **plan limits** to prevent abuse
-- The API key is stored server-side; never exposed to browsers
+- Use a **dedicated Spooled organization** for the demo.
+- Set **plan limits** and retain the app’s built-in per-IP request limits.
+- Keep `SPOOLED_API_KEY` server-side; the browser only calls SpriteForge endpoints.
 
 ---
 
