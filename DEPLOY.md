@@ -12,8 +12,9 @@ This guide covers deploying SpriteForge to production. Choose the method that fi
 4. [Platform Deployments](#platform-deployments)
 5. [Cloudflare Tunnel Setup](#cloudflare-tunnel-setup)
 6. [Environment Variables](#environment-variables)
-7. [Health Checks & Monitoring](#health-checks--monitoring)
-8. [Troubleshooting](#troubleshooting)
+7. [Release and Deployment Evidence](#release-and-deployment-evidence)
+8. [Health Checks & Monitoring](#health-checks--monitoring)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -305,6 +306,86 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 > **Retention note:** SpriteForge sets `expiresAt` on interactive workflow jobs. The Spooled backend checks cleanup every five minutes; pending, scheduled, failed, and dead-letter jobs can be removed after explicit expiration, while completed/cancelled jobs and completed/failed/cancelled workflows follow organization retention limits.
 
 ---
+
+## Release and Deployment Evidence
+
+### Version and compatibility surfaces
+
+A SpriteForge application release has three root version fields that must agree:
+
+- `package.json.version` — the authoritative application source/release version.
+- top-level `package-lock.json.version` — generated npm lock metadata.
+- `package-lock.json.packages[""].version` — generated metadata for the root package.
+
+Use `npm version <version> --no-git-tag-version` to update the three application fields together. A `v*` release tag must equal these values after removing its `v` prefix. The tag-only CI guard enforces that relationship before the release job can publish an image or GitHub Release.
+
+Release-facing documentation and image examples are additional review surfaces, not authoritative version sources. Prefer version-neutral links and placeholders such as the GitHub latest-release page and `ghcr.io/spooled-cloud/spooled-example-spriteforge:<release-tag>`. If a concrete current version is intentionally documented, include it in the release review so it cannot silently lag the tag.
+
+`@spooled/sdk` has different semantics from the SpriteForge application version:
+
+- `package.json` declares the compatible SDK semver range.
+- `package-lock.json` records the exact SDK package resolved and reproduced by `npm ci`.
+
+The range and lock resolution are intentional compatibility state. At the current documented state, `package.json` declares `^1.0.26` and `package-lock.json` resolves `@spooled/sdk` to exactly `1.0.26`; `npm ci` reproduces that resolution. Review both, record the locked SDK version and relevant integration evidence, and decide whether an update is needed. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
+
+### CI and image publication model
+
+`.github/workflows/ci.yml` runs on pull requests, pushes to `main`, and `v*` tag pushes:
+
+- `check` installs with `npm ci`, runs the tag-only application-version assertion when applicable, and checks server JavaScript syntax.
+- Main pushes that pass `check` publish multi-architecture `linux/amd64` and `linux/arm64` images tagged `latest` and with the short source commit SHA.
+- Tag pushes that pass `check` publish the literal release tag, refresh `latest`, and create a GitHub Release.
+- The filesystem Trivy scan is currently non-blocking (`exit-code: 0`) and should be recorded as such rather than described as a release gate.
+
+Main publication remains independent of the tag-only assertion. A workflow run and GHCR image prove artifact publication, not deployment to `example.spooled.cloud`, Docker Compose, Kubernetes, or another platform.
+
+### Advisory release and deployment checklist
+
+This checklist is advisory evidence tracking. Items may be marked `N/A`, or an exception may be recorded with an owner and rationale; it does not authorize or itself block research builds. A mismatch among the tag and application package/lock fields for the same release artifact is a release error and cannot be waived for tag publication.
+
+#### Prepare and validate the release
+
+- [ ] Record `RELEASE_VERSION`, `RELEASE_TAG=v${RELEASE_VERSION}`, the intended branch, and the exact source commit; confirm the tag is unused and the working tree is clean and synced.
+- [ ] Update `package.json.version`, top-level `package-lock.json.version`, and `package-lock.json.packages[""].version` together.
+- [ ] Search README, deployment guidance, image examples, and release links for stale concrete application versions.
+- [ ] Record the declared `@spooled/sdk` range and exact lock resolution; review SDK release notes and compatibility relevant to workers, workflows, schedules, REST, and realtime usage.
+- [ ] Do not require the SDK and application versions to match numerically; record why the locked SDK is retained or changed.
+- [ ] Run `npm ci` and `node --check server/server.mjs server/spriteforge.mjs`.
+- [ ] Build the Docker image and verify its health check locally when Docker is available.
+- [ ] Confirm no secret-bearing `.env` file or generated local artifact is staged.
+
+#### Publish and identify the artifact
+
+- [ ] Create the tag on the validated commit and confirm `git rev-parse "${RELEASE_TAG}^{}"` resolves to that commit.
+- [ ] Record the successful CI/release workflow and GitHub Release URL.
+- [ ] Confirm both architecture images and the multi-architecture `ghcr.io/spooled-cloud/spooled-example-spriteforge:${RELEASE_TAG}` manifest exist.
+- [ ] Record the immutable GHCR digest. Do not use mutable `latest` as release identity.
+- [ ] Confirm source commit, application version, Git tag, GitHub Release, image tag, and digest describe the same artifact.
+
+#### Deploy separately
+
+- [ ] Record the target environment/platform, operator/provider deployment ID, time, selected immutable tag or digest, and previous rollback artifact.
+- [ ] Override `SPRITEFORGE_IMAGE` or the Kustomize image to the recorded immutable tag/digest rather than relying on the checked-in `latest` default.
+- [ ] Confirm the actual container or Kubernetes workload resolves to the intended digest and record rollout history.
+- [ ] Do not infer deployment from a successful tag workflow, GitHub Release, or GHCR package page.
+
+#### Verify health and end-to-end behavior
+
+- [ ] Call the deployed `GET /health`; require `200` and inspect API/circuit-breaker status plus session/job/workflow counters.
+- [ ] Treat `/health` as service-health evidence, not release-version or digest proof; connect live state to the artifact using platform/deployment provenance.
+- [ ] Load the public UI in a clean browser session and check console/network errors.
+- [ ] Using a dedicated Spooled organization, forge a sprite and verify workflow creation, frame processing, assembly, and rendered output.
+- [ ] Verify SSE event delivery and `POST /api/jobs/batch` reconciliation so a result can recover after missed realtime events.
+- [ ] If enabled, verify the public schedule and latest-public-sprite path without modifying unrelated organizations.
+- [ ] Record the deployed app commit/digest, backend environment, declared and locked SDK versions, observation time, and any blocked path.
+- [ ] Clean up isolated test resources and do not claim live verification from source, tag, or health evidence alone.
+
+#### Rollback
+
+- [ ] Record the last known-good immutable image digest before deployment.
+- [ ] Reconfigure Compose, Kubernetes, or the hosting provider to that digest/tag and verify rollout completion.
+- [ ] Repeat health, UI, forge workflow, SSE/reconciliation, and backend-connectivity checks.
+- [ ] Record rollback operator, time, reason, deployment ID, image digest, and verification evidence.
 
 ## Health Checks & Monitoring
 

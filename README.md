@@ -37,7 +37,7 @@
 
 SpriteForge is a **real-time pixel art sprite generator** that demonstrates [Spooled Cloud](https://spooled.cloud) workflows, workers, schedules, retries, and realtime events.
 
-**Current release:** [`v1.0.12`](https://github.com/spooled-cloud/spooled-example-spriteforge/releases/tag/v1.0.12)
+**Releases:** [latest published release](https://github.com/spooled-cloud/spooled-example-spriteforge/releases/latest)
 
 **Try it live:** [example.spooled.cloud](https://example.spooled.cloud)
 
@@ -100,7 +100,7 @@ Or run directly:
 ```bash
 docker run -p 3000:3000 \
   -e SPOOLED_API_KEY=sp_live_your_key \
-  ghcr.io/spooled-cloud/spooled-example-spriteforge:v1.0.12
+  ghcr.io/spooled-cloud/spooled-example-spriteforge:<release-tag>
 ```
 
 ---
@@ -169,7 +169,7 @@ The CI workflow publishes multi-architecture (`linux/amd64`, `linux/arm64`) imag
 ```text
 ghcr.io/spooled-cloud/spooled-example-spriteforge:latest
 ghcr.io/spooled-cloud/spooled-example-spriteforge:<short-commit-sha>
-ghcr.io/spooled-cloud/spooled-example-spriteforge:v1.0.12
+ghcr.io/spooled-cloud/spooled-example-spriteforge:<release-tag>
 ```
 
 ### Docker Compose (Production)
@@ -369,7 +369,7 @@ curl http://localhost:3000/health
 
 ### SDK and Security Notes
 
-SpriteForge `v1.0.12` declares `@spooled/sdk` with the compatible range `^1.0.26`; the committed `package-lock.json` currently resolves that dependency to exactly `1.0.26`, so `npm ci` reproduces that resolution. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
+SpriteForge declares `@spooled/sdk` with a compatible semver range in `package.json`; the committed `package-lock.json` records the exact SDK version reproduced by `npm ci`. The declared range and locked resolution are intentionally separate compatibility state: review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
 
 When deploying publicly:
 - Use a **dedicated Spooled organization** for the demo.
