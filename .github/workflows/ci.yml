@@ -59,7 +59,10 @@ jobs:
           NODE
 
       - name: Check for syntax errors
-        run: node --check server/server.mjs server/spriteforge.mjs
+        run: |
+          node --check server/server.mjs
+          node --check server/spriteforge.mjs
+          node --check public/app.js
 
   # Docker build on main branch
   docker:

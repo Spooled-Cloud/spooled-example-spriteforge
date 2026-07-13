@@ -151,7 +151,7 @@ function normalizeStatus(status) {
   if (s === 'processing' || s === 'running' || s === 'active' || s === 'started') return 'processing';
   if (s === 'pending' || s === 'queued' || s === 'created') return 'pending';
   if (s === 'completed' || s === 'succeeded' || s === 'success') return 'completed';
-  if (s === 'failed' || s === 'error' || s === 'deadlettered' || s === 'dead_letter') return 'failed';
+  if (s === 'failed' || s === 'error' || s === 'deadletter' || s === 'deadlettered' || s === 'dead_letter') return 'failed';
   return s;
 }
 
@@ -214,9 +214,11 @@ async function reconcileOnce({ includeResult }) {
       }
     }
 
-    // Stop polling if everything is completed (or we already have the final sprite)
+    // Stop polling only when we have the final sprite, or when a terminal failure
+    // makes recovery impossible. Jobs can all be completed before the assemble
+    // result reaches the browser, so completed-without-sprite must keep polling.
     const vals = [...jobs.values()];
-    const allDone = vals.length > 0 && vals.every((j) => j.status === 'completed');
+    const anyFailed = vals.some((j) => j.status === 'failed');
     if (sprite && sprite.frames?.length) {
       els.previewStatus.textContent = 'Complete!';
       enableDownloadIfReady();
@@ -226,7 +228,9 @@ async function reconcileOnce({ includeResult }) {
       // ensure UI shows green everywhere
       for (const [, j] of jobs) j.status = 'completed';
       stopReconcile();
-    } else if (allDone) {
+    } else if (anyFailed) {
+      els.previewStatus.textContent = 'Failed';
+      els.previewMeta.textContent = 'One or more jobs reached a terminal failure.';
       stopReconcile();
     }
 
@@ -240,12 +244,10 @@ async function reconcileOnce({ includeResult }) {
 function startReconcile(jobIds) {
   stopReconcile();
   reconcileJobIds = jobIds.slice();
-  // Poll fast for the first ~20s to converge quickly, then continue slower
-  let ticks = 0;
+  // Keep including results until the final sprite is recovered; completion
+  // status alone is not enough to render/download the assembled sprite.
   reconcileTimer = setInterval(() => {
-    ticks++;
-    const includeResult = ticks <= 25; // ~25s include results to recover missed frames/sprite
-    reconcileOnce({ includeResult }).catch(() => {});
+    reconcileOnce({ includeResult: true }).catch(() => {});
   }, 1000);
 }
 
