@@ -30,6 +30,7 @@ This guide covers deploying SpriteForge to production. Choose the method that fi
 
 - Dedicated Spooled organization for the demo
 - Plan limits to prevent abuse on public deployment
+- If you also self-host the Spooled **backend**, use that repo’s `docker-compose.prod.yml` — gRPC TLS and Prometheus/Grafana bootstrap automatically (no busybox Exited-0 init containers). See `spooled-backend/docs/guides/deployment.md` (**Zero-touch init**).
 
 ---
 
