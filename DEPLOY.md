@@ -30,7 +30,7 @@ This guide covers deploying SpriteForge to production. Choose the method that fi
 
 - Dedicated Spooled organization for the demo
 - Plan limits to prevent abuse on public deployment
-- If you also self-host the Spooled **backend**, use that repo’s `docker-compose.prod.yml` — gRPC TLS and Prometheus/Grafana bootstrap automatically (no busybox Exited-0 init containers). Pin `BACKEND_IMAGE` on production. On the shared Spooled host, durable path is `/opt/spooled/backend` with Portainer heal docs in `spooled-backend/docs/guides/production-host-portainer.md`. See also `spooled-backend/docs/guides/deployment.md` (**Zero-touch init**).
+- If you also self-host the Spooled **backend**, use that repo’s `docker-compose.prod.yml` — gRPC TLS and Prometheus/Grafana bootstrap automatically (no busybox Exited-0 init containers). Production follows `:latest` for easy Portainer **Pull and redeploy**. On the shared Spooled host, durable path is `/opt/spooled/backend`; see `spooled-backend/docs/guides/production-host-portainer.md` (includes **heal** after Portainer wipes Git sha dirs). Also `spooled-backend/docs/guides/deployment.md` (**Zero-touch init**).
 
 ---
 
