@@ -33,8 +33,8 @@
     />
     <meta property="twitter:image" content="https://example.spooled.cloud/og.webp" />
 
-    <meta name="theme-color" content="#0c1210" />
-    <meta name="msapplication-TileColor" content="#0c1210" />
+    <meta name="theme-color" content="#0b1210" />
+    <meta name="msapplication-TileColor" content="#0b1210" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
@@ -54,19 +54,22 @@
   </head>
   <body>
     <div class="bg-pixel" aria-hidden="true"></div>
+    <div class="bg-wash" aria-hidden="true"></div>
 
     <header class="header">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
+      <a class="brand" href="/" aria-label="SpriteForge home">
+        <img class="brand-mark" src="/spooled-mark.svg" width="40" height="40" alt="" />
         <div class="brand-text">
-          <h1 class="title">SpriteForge</h1>
-          <p class="tagline">
-            Pixel playground ·
-            <a href="https://spooled.cloud" target="_blank" rel="noopener">Spooled</a>
-            jobs live
-          </p>
+          <span class="title">SpriteForge</span>
+          <span class="tagline">Pixel sprite demo</span>
         </div>
-      </div>
+      </a>
+
+      <a class="powered" href="https://spooled.cloud" target="_blank" rel="noopener" title="Spooled Cloud">
+        <span class="powered-label">Powered by</span>
+        <img class="powered-logo" src="/spooled-logo.svg" width="120" height="36" alt="Spooled Cloud" />
+      </a>
+
       <div class="header-right">
         <div class="stats-mini" aria-label="Session stats">
           <div class="stat-mini">
@@ -90,17 +93,25 @@
     </header>
 
     <main class="main">
-      <!-- Primary: stage + forge -->
+      <p class="lede">
+        Forge a pixel sprite. Spooled runs the <strong>workflow</strong> — parallel frame jobs, workers, retries, live events.
+      </p>
+
       <section class="hero" aria-label="Forge a sprite">
         <div class="stage">
           <div class="stage-head">
-            <span class="stage-label">Live sprite</span>
+            <span class="stage-label">Live stage</span>
             <span class="preview-status" id="preview-status">Ready</span>
           </div>
           <div class="preview-container">
+            <div class="stage-grid" aria-hidden="true"></div>
             <canvas id="preview" width="320" height="320" aria-label="Sprite preview"></canvas>
             <div class="preview-overlay" id="preview-overlay">
-              <p class="placeholder-text">Forge to watch Spooled run the workflow</p>
+              <div class="placeholder">
+                <img class="placeholder-mark" src="/spooled-mark.svg" width="48" height="48" alt="" />
+                <p class="placeholder-title">Hit Forge Sprite</p>
+                <p class="placeholder-text">Watch Spooled queue → workers → assemble</p>
+              </div>
             </div>
             <div class="preview-progress hidden" id="preview-progress">
               <div class="progress-text" id="progress-text">0/8 frames</div>
@@ -110,9 +121,10 @@
         </div>
 
         <form class="forge-panel" id="forge-form" onsubmit="return false;">
-          <p class="forge-pitch">
-            Each forge = workflow: parallel frame jobs → assemble → live events.
-          </p>
+          <div class="forge-head">
+            <h2 class="forge-title">Forge controls</h2>
+            <p class="forge-pitch">Frames run in parallel. Chaos shows retries.</p>
+          </div>
 
           <div class="form-group">
             <label for="seed">Name <span class="optional">(optional)</span></label>
@@ -144,51 +156,30 @@
 
           <div class="form-group chaos-group">
             <div class="label-row">
-              <label for="chaos">Chaos <span class="hint">retries</span></label>
+              <label for="chaos">Chaos <span class="hint">failure %</span></label>
               <strong><span id="chaos-label">10</span>%</strong>
             </div>
             <input id="chaos" type="range" min="0" max="50" step="5" value="10" class="chaos-slider" />
           </div>
 
           <div class="btn-row">
-            <button type="button" id="forge" class="btn btn-primary">
-              Forge Sprite
-            </button>
-            <button type="button" id="download" class="btn btn-secondary" disabled title="Download PNG sheet">
-              PNG
-            </button>
+            <button type="button" id="forge" class="btn btn-primary">Forge Sprite</button>
+            <button type="button" id="download" class="btn btn-secondary" disabled title="Download PNG sheet">PNG</button>
           </div>
-          <p class="kbd-hint"><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> forge</p>
+          <p class="kbd-hint"><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd></p>
         </form>
       </section>
 
-      <!-- Live pipeline -->
       <nav class="pipeline" aria-label="Workflow progress">
         <ol class="steps">
-          <li class="step" id="step-1">
-            <span class="step-num">1</span>
-            <span class="step-label">Workflow</span>
-          </li>
-          <li class="step" id="step-2">
-            <span class="step-num">2</span>
-            <span class="step-label">Queue</span>
-          </li>
-          <li class="step" id="step-3">
-            <span class="step-num">3</span>
-            <span class="step-label">Workers</span>
-          </li>
-          <li class="step" id="step-4">
-            <span class="step-num">4</span>
-            <span class="step-label">Events</span>
-          </li>
-          <li class="step" id="step-5">
-            <span class="step-num">5</span>
-            <span class="step-label">Assemble</span>
-          </li>
+          <li class="step" id="step-1"><span class="step-num">1</span><span class="step-label">Workflow</span></li>
+          <li class="step" id="step-2"><span class="step-num">2</span><span class="step-label">Queue</span></li>
+          <li class="step" id="step-3"><span class="step-num">3</span><span class="step-label">Workers</span></li>
+          <li class="step" id="step-4"><span class="step-num">4</span><span class="step-label">Events</span></li>
+          <li class="step" id="step-5"><span class="step-num">5</span><span class="step-label">Assemble</span></li>
         </ol>
       </nav>
 
-      <!-- Secondary: tabs -->
       <section class="panel" aria-label="Live pipeline details">
         <div class="tabs" role="tablist" aria-label="Live views">
           <button type="button" class="tab active" role="tab" id="tab-jobs" aria-selected="true" aria-controls="panel-jobs" data-tab="jobs">
@@ -208,9 +199,7 @@
             <div class="workflow-viz">
               <div class="wf-node wf-start">start</div>
               <span class="wf-arrow">→</span>
-              <div class="wf-parallel" id="wf-frames">
-                <span class="wf-label">frames</span>
-              </div>
+              <div class="wf-parallel" id="wf-frames"><span class="wf-label">frames</span></div>
               <span class="wf-arrow">→</span>
               <div class="wf-node wf-assemble" id="wf-assemble">assemble</div>
               <span class="wf-arrow">→</span>
@@ -236,49 +225,50 @@
             <canvas id="public" width="280" height="140" aria-label="Sprite of the minute"></canvas>
             <p class="minute-note">
               <strong>Sprite of the Minute</strong> — Spooled cron
-              <code>0 * * * * *</code> enqueues a public sprite every minute.
+              <code>0 * * * * *</code> fires every minute.
             </p>
           </div>
         </div>
       </section>
 
-      <!-- Progressive disclosure -->
       <details class="glossary">
         <summary>How Spooled shows up here</summary>
         <dl class="glossary-list">
           <div>
             <dt>Workflow</dt>
-            <dd>DAG: N frame jobs in parallel, then one assemble job that waits for all.</dd>
+            <dd>DAG: N frame jobs in parallel, then one assemble job.</dd>
           </div>
           <div>
             <dt>Workers</dt>
-            <dd>Frame, assemble, and public-sprite workers pull from Spooled queues.</dd>
+            <dd>Frame, assemble, and public-sprite workers pull Spooled queues.</dd>
           </div>
           <div>
             <dt>Realtime</dt>
-            <dd>Spooled WebSocket → this server → your browser over SSE (+ reconcile poll).</dd>
+            <dd>Spooled WebSocket → this server → browser SSE (+ reconcile).</dd>
           </div>
           <div>
             <dt>Retries</dt>
-            <dd>Chaos slider injects failures; Spooled retries — watch the retry count.</dd>
+            <dd>Chaos slider injects failures; Spooled retries automatically.</dd>
           </div>
           <div>
             <dt>Schedules</dt>
-            <dd>“Minute” tab — cron-driven public sprite, no click required.</dd>
+            <dd>Minute tab — cron public sprite, no click needed.</dd>
           </div>
         </dl>
       </details>
     </main>
 
     <footer class="footer">
-      <span>Powered by <a href="https://spooled.cloud" target="_blank" rel="noopener">Spooled</a></span>
-      <span class="sep" aria-hidden="true">·</span>
-      <a href="https://github.com/spooled-cloud/spooled-example-spriteforge" target="_blank" rel="noopener">GitHub</a>
-      <span class="sep" aria-hidden="true">·</span>
-      <a href="https://spooled.cloud/docs" target="_blank" rel="noopener">Docs</a>
+      <a class="footer-brand" href="https://spooled.cloud" target="_blank" rel="noopener">
+        <img src="/spooled-logo.svg" width="110" height="33" alt="Spooled Cloud" />
+      </a>
+      <div class="footer-links">
+        <a href="https://github.com/spooled-cloud/spooled-example-spriteforge" target="_blank" rel="noopener">GitHub</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://spooled.cloud/docs" target="_blank" rel="noopener">Docs</a>
+      </div>
     </footer>
 
-    <!-- Mobile sticky forge -->
     <div class="sticky-forge" id="sticky-forge">
       <button type="button" class="btn btn-primary" id="forge-sticky">Forge Sprite</button>
     </div>

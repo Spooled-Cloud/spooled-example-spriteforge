@@ -332,7 +332,7 @@ function renderPreview() {
   ctx.clearRect(0, 0, els.preview.width, els.preview.height);
 
   // Stage backdrop (matches craft UI)
-  ctx.fillStyle = '#0a100e';
+  ctx.fillStyle = '#060a08';
   ctx.fillRect(0, 0, els.preview.width, els.preview.height);
 
   const scale = 10;
@@ -879,7 +879,7 @@ function renderPublicSprite(msg) {
   const canvas = els.public;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#0a100e';
+  ctx.fillStyle = '#060a08';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (!msg || !msg.data || !msg.data.result) return;
