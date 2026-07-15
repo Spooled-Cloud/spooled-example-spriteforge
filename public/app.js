@@ -57,6 +57,9 @@ const els = {
   
   // Steps
   steps: [1, 2, 3, 4, 5].map(n => $(`step-${n}`)),
+
+  // Sticky CTA (mobile)
+  forgeSticky: $('forge-sticky'),
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -89,8 +92,29 @@ let reconcileTimer = null;
 // ═══════════════════════════════════════════════════════════════════════════
 
 function flashEventIndicator() {
+  if (!els.eventIndicator) return;
   els.eventIndicator.classList.add('flash');
   setTimeout(() => els.eventIndicator.classList.remove('flash'), 150);
+}
+
+function switchTab(name) {
+  const tabs = document.querySelectorAll('.tab[data-tab]');
+  const panels = {
+    jobs: $('panel-jobs'),
+    events: $('panel-events'),
+    minute: $('panel-minute'),
+  };
+  for (const tab of tabs) {
+    const active = tab.dataset.tab === name;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+  }
+  for (const [key, panel] of Object.entries(panels)) {
+    if (!panel) continue;
+    const show = key === name;
+    panel.classList.toggle('hidden', !show);
+    panel.hidden = !show;
+  }
 }
 
 function logLine(line, type = 'info') {
@@ -280,8 +304,8 @@ function renderPreview() {
   const ctx = els.preview.getContext('2d');
   ctx.clearRect(0, 0, els.preview.width, els.preview.height);
 
-  // Dark backdrop
-  ctx.fillStyle = '#050508';
+  // Stage backdrop (matches craft UI)
+  ctx.fillStyle = '#0a100e';
   ctx.fillRect(0, 0, els.preview.width, els.preview.height);
 
   const scale = 10;
@@ -504,6 +528,9 @@ async function forgeSprite() {
   hideProgress();
   
   setStep(1);
+
+  // Keep Jobs tab visible while forging
+  switchTab('jobs');
 
   const seed = (els.seed.value || '').trim() || `sprite-${Math.random().toString(16).slice(2, 6)}`;
   const paletteName = els.palette.value || 'neon';
@@ -825,7 +852,7 @@ function renderPublicSprite(msg) {
   const canvas = els.public;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#050508';
+  ctx.fillStyle = '#0a100e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (!msg || !msg.data || !msg.data.result) return;
@@ -906,7 +933,7 @@ function connectSse() {
   });
 
   es.onerror = () => {
-    setPill('Disconnected — retrying…', 'disconnected');
+    setPill('Offline…', 'disconnected');
   };
 }
 
@@ -939,20 +966,43 @@ function initUi() {
     els.chaosLabel.textContent = els.chaos.value;
   });
 
+  const runForge = () => {
+    forgeSprite().catch((e) => logLine(`Error: ${e.message}`, 'failed'));
+  };
+
   // Buttons
-  els.forge.addEventListener('click', () => {
-    forgeSprite().catch((e) => logLine(`❌ Error: ${e.message}`, 'failed'));
-  });
+  els.forge.addEventListener('click', runForge);
+  if (els.forgeSticky) {
+    els.forgeSticky.addEventListener('click', runForge);
+  }
   
   els.download.addEventListener('click', downloadSpriteSheetPng);
+
+  // Secondary tabs
+  for (const tab of document.querySelectorAll('.tab[data-tab]')) {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+  }
 
   // Keyboard shortcut
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      forgeSprite().catch((e) => logLine(`❌ Error: ${e.message}`, 'failed'));
+      runForge();
     }
   });
+
+  // Sticky CTA only when primary Forge is off-screen (mobile)
+  if (els.forgeSticky && 'IntersectionObserver' in window) {
+    const bar = els.forgeSticky.closest('.sticky-forge');
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!bar) return;
+        bar.style.display = entry.isIntersecting ? 'none' : '';
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(els.forge);
+  }
 
   // Start animation loop
   requestAnimationFrame(tick);
@@ -964,7 +1014,7 @@ function initUi() {
   
   // Log welcome message
   setTimeout(() => {
-    logLine('✨ Welcome to SpriteForge! Click "Forge Sprite" to begin.', 'info');
+    logLine('Ready — hit Forge Sprite to watch the workflow.', 'info');
   }, 500);
 }
 

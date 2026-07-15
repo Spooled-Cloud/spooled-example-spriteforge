@@ -4,3 +4,4 @@
 |--------|--------|
 | SDK dependency | `package.json` + lock + this START-HERE note |
 | Spooled API usage | `server/server.mjs` + START-HERE |
+| Frontend IA / stable DOM ids | `public/` + START-HERE Frontend section |
