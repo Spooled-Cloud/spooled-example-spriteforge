@@ -16,7 +16,7 @@ Compact craft UI (2026-07-15 redesign):
 | Tabs | Jobs (workflow diagram + list) · Events (`#log`) · Minute (`#public`) |
 | Glossary | `<details>` progressive disclosure — not a card wall |
 
-Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*, jobs, wf-*, log, event-indicator, public, steps, conn-pill, stats).
+Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*, jobs, wf-*, log, event-indicator, public, steps, conn-pill, stats). Reconcile polling also advances pipeline step/status when SSE is partial.
 
 Visual: dark oklch green family (related to Spooled marketing accents) + amber forge accent; Space Grotesk + JetBrains Mono; pixel grid atmosphere. No welcome/comparison essay blocks.
 

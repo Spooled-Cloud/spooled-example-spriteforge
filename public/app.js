@@ -243,6 +243,33 @@ async function reconcileOnce({ includeResult }) {
     // result reaches the browser, so completed-without-sprite must keep polling.
     const vals = [...jobs.values()];
     const anyFailed = vals.some((j) => j.status === 'failed');
+    const anyProcessing = vals.some((j) => j.status === 'processing');
+    const framesDone = [...vals].filter((j) => j.key.startsWith('frame-') && j.status === 'completed').length;
+    const framesTotal = [...vals].filter((j) => j.key.startsWith('frame-')).length;
+    const assemble = vals.find((j) => j.key === 'assemble');
+
+    // Keep pipeline chrome in sync when SSE is partial and only reconcile runs
+    if (!(sprite && sprite.frames?.length) && !anyFailed && vals.length > 0) {
+      if (assemble?.status === 'processing') {
+        setStep(5);
+        els.previewStatus.textContent = 'Assembling…';
+        updateProgress(framesTotal || framesDone, framesTotal || framesDone, 'assembling');
+      } else if (framesTotal > 0 && framesDone >= framesTotal) {
+        setStep(4);
+        els.previewStatus.textContent = `✓ ${framesDone}/${framesTotal} frames`;
+        updateProgress(framesDone, framesTotal, 'frames');
+      } else if (anyProcessing || framesDone > 0) {
+        setStep(3);
+        if (framesTotal > 0) {
+          els.previewStatus.textContent =
+            framesDone < framesTotal ? `${framesDone}/${framesTotal} frames` : 'Processing…';
+          updateProgress(framesDone, framesTotal, 'frames');
+        } else {
+          els.previewStatus.textContent = 'Processing…';
+        }
+      }
+    }
+
     if (sprite && sprite.frames?.length) {
       els.previewStatus.textContent = 'Complete!';
       enableDownloadIfReady();
@@ -993,15 +1020,31 @@ function initUi() {
 
   // Sticky CTA only when primary Forge is off-screen (mobile)
   if (els.forgeSticky && 'IntersectionObserver' in window) {
-    const bar = els.forgeSticky.closest('.sticky-forge');
+    const bar = $('sticky-forge') || els.forgeSticky.closest('.sticky-forge');
+    const syncSticky = (visible) => {
+      if (!bar) return;
+      // Only show sticky on narrow viewports; never fight desktop CSS with inline display
+      const mobile = window.matchMedia('(max-width: 719px)').matches;
+      if (!mobile) {
+        bar.hidden = true;
+        bar.setAttribute('aria-hidden', 'true');
+        return;
+      }
+      bar.hidden = visible;
+      bar.setAttribute('aria-hidden', visible ? 'true' : 'false');
+    };
     const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!bar) return;
-        bar.style.display = entry.isIntersecting ? 'none' : '';
-      },
+      ([entry]) => syncSticky(entry.isIntersecting),
       { threshold: 0.4 }
     );
     io.observe(els.forge);
+    window.addEventListener('resize', () => {
+      const rect = els.forge.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight && rect.bottom > 0;
+      syncSticky(inView);
+    });
+    // initial
+    syncSticky(true);
   }
 
   // Start animation loop
