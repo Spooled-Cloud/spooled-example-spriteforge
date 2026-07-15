@@ -1,6 +1,6 @@
 {
   "name": "spooled-example-spriteforge",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "type": "module",
   "description": "SpriteForge: an animated pixel-sprite generator powered by Spooled (jobs + workflows + workers + realtime)",
@@ -13,7 +13,7 @@
     "start": "node server/server.mjs"
   },
   "dependencies": {
-    "@spooled/sdk": "^1.0.26",
+    "@spooled/sdk": "1.0.39",
     "eventsource": "^4.1.0",
     "ws": "^8.20.0"
   }

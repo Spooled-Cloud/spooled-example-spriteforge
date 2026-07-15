@@ -1,26 +1,26 @@
 /* SpriteForge — craft demo UI with Spooled brand */
 
 :root {
-  --bg: #0a100e;
-  --bg-elev: #101916;
-  --surface: #14201b;
-  --surface-2: #1a2922;
-  --border: #2a3d34;
-  --border-strong: #3d574a;
-  --text: #eef6f1;
-  --text-2: #b4c9bc;
-  --muted: #7f978a;
+  --bg: #12141a;
+  --bg-elev: #181b22;
+  --surface: #1e222b;
+  --surface-2: #262b36;
+  --border: #343a48;
+  --border-strong: #4a5162;
+  --text: #e8eaf0;
+  --text-2: #a8adb8;
+  --muted: #7a8190;
 
-  --accent: #34d399;
-  --accent-dim: #059669;
-  --accent-contrast: #062016;
-  --forge: #fbbf24;
-  --forge-dim: #d97706;
+  --accent: #5b8def;
+  --accent-dim: #3d6fd4;
+  --accent-contrast: #0c1220;
+  --forge: #5b8def;
+  --forge-dim: #3d6fd4;
 
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --bad: #f87171;
-  --run: #fbbf24;
+  --ok: #3dba8a;
+  --warn: #d4a017;
+  --bad: #e57373;
+  --run: #5b8def;
 
   --font: "Space Grotesk", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, monospace;
@@ -98,9 +98,9 @@ a:hover {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(52, 211, 153, 0.12), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 90% 10%, rgba(251, 191, 36, 0.08), transparent 50%),
-    linear-gradient(180deg, #0c1612 0%, var(--bg) 40%, #080d0b 100%);
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(91, 141, 239, 0.1), transparent 55%),
+    radial-gradient(ellipse 45% 35% at 95% 5%, rgba(61, 186, 138, 0.06), transparent 50%),
+    linear-gradient(180deg, #161920 0%, var(--bg) 42%, #0e1014 100%);
 }
 
 .header,
@@ -123,7 +123,7 @@ a:hover {
   margin: 0 auto;
   padding: 0.85rem var(--pad);
   border-bottom: 1px solid var(--border);
-  background: rgba(10, 16, 14, 0.72);
+  background: rgba(18, 20, 26, 0.78);
   backdrop-filter: blur(8px);
 }
 
@@ -179,28 +179,15 @@ a:hover {
   grid-area: powered;
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  color: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
   text-decoration: none;
   justify-self: start;
 }
 .powered:hover {
+  color: var(--text-2);
   text-decoration: none;
-  opacity: 0.9;
-}
-
-.powered-label {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.powered-logo {
-  height: 28px;
-  width: auto;
-  display: block;
 }
 
 .header-right {
@@ -1063,11 +1050,15 @@ kbd {
   border-top: 1px solid var(--border);
 }
 
-.footer-brand img {
-  height: 30px;
-  width: auto;
-  display: block;
-  opacity: 0.92;
+.footer-brand {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-decoration: none;
+}
+.footer-brand:hover {
+  color: var(--text);
+  text-decoration: none;
 }
 
 .footer-links {

@@ -1,16 +1,16 @@
 # SpriteForge example — Agent Knowledge Base
 
-Demo app **v1.0.14** using `@spooled/sdk` (declared `^1.0.26`, lock **1.0.26**). Live: `example.spooled.cloud`.
+Demo app **v1.0.15** using `@spooled/sdk` **1.0.39** (lease fencing on complete/fail/heartbeat). Live: `example.spooled.cloud`.
 
 Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, workflows, schedules, realtime bridge.
 
 ## Frontend (`public/`)
 
-Compact craft UI (2026-07-15 redesign):
+Compact craft UI (2026-07-15 redesign + brand/color pass):
 
 | Surface | Role |
 |---------|------|
-| Header | Brand + Spooled link + conn pill + mini stats |
+| Header | One Spooled mark + SpriteForge title + text “Powered by Spooled” + conn pill + mini stats |
 | Hero | Live canvas stage + forge form (sticky Forge on viewports under 720px) |
 | Pipeline | 5 live steps (`#step-1`…`#step-5`) bound by `app.js` |
 | Tabs | Jobs (workflow diagram + list) · Events (`#log`) · Minute (`#public`) |
@@ -18,6 +18,6 @@ Compact craft UI (2026-07-15 redesign):
 
 Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*, jobs, wf-*, log, event-indicator, public, steps, conn-pill, stats). Reconcile polling also advances pipeline step/status when SSE is partial.
 
-Visual: dark oklch green family (related to Spooled marketing accents) + amber forge accent; Space Grotesk + JetBrains Mono; pixel grid atmosphere. No welcome/comparison essay blocks.
+Visual: slate dark + blue accent (forge CTA matches accent); Space Grotesk + JetBrains Mono; light pixel grid. Single brand mark in header — no duplicate Spooled wordmark logos.
 
-See `DEPLOY.md` for deploy. SDK pin may intentionally lag Node tip — record review date if bumped.
+See `DEPLOY.md` for deploy. **Do not pin SDK below 1.0.39** while backend enforces lease_id fencing (see SF-02).

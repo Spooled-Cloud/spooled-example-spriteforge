@@ -1,1 +1,2 @@
-{"id":"SF-01","sev":"P3","summary":"SDK pin 1.0.26 vs tip 1.0.37","status":"open","classification":"owner-question"}
+{"id":"SF-01","sev":"P3","summary":"SDK pin 1.0.26 vs tip","status":"closed","resolution":"bumped to 1.0.39 with SF-02"}
+{"id":"SF-02","sev":"P0","summary":"SDK 1.0.26 completeJob omits leaseId; backend 0.1.107 returns 409 LEASE_EXPIRED; workers claim but never ack","status":"fixed","path":"node_modules/@spooled/sdk worker completeJob (fixed >=1.0.39)","fix":"pin @spooled/sdk 1.0.39","verified":"2026-07-15"}
