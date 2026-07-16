@@ -25,6 +25,8 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
+ARG SOURCE_COMMIT=unknown
+
 # Install security updates
 RUN apk update && apk upgrade --no-cache
 
@@ -45,6 +47,7 @@ USER app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+ENV SOURCE_COMMIT=${SOURCE_COMMIT}
 
 EXPOSE 3000
 

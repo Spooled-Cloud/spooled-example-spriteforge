@@ -25,4 +25,4 @@ resources:
 commonLabels:
   app.kubernetes.io/name: spooled-example-spriteforge
   app.kubernetes.io/component: example
-  app.kubernetes.io/version: "0.1.0"
+  app.kubernetes.io/version: "1.0.15"

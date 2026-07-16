@@ -1,29 +1,35 @@
-import http from 'node:http';
-import crypto from 'node:crypto';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
+import http from "node:http";
+import crypto from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 
-import { SpooledClient, SpooledRealtime, SpooledWorker } from '@spooled/sdk';
+import { SpooledClient, SpooledRealtime, SpooledWorker } from "@spooled/sdk";
 
-import { generateFrame, PALETTES, getPaletteByName } from './spriteforge.mjs';
+import { generateFrame, PALETTES, getPaletteByName } from "./spriteforge.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const PACKAGE_JSON = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-const APP_VERSION = PACKAGE_JSON.version || '0.0.0-dev';
+const PUBLIC_DIR = path.join(__dirname, "..", "public");
+const PACKAGE_JSON = JSON.parse(
+  readFileSync(path.join(__dirname, "..", "package.json"), "utf8"),
+);
+const APP_VERSION = PACKAGE_JSON.version || "0.0.0-dev";
 const APP_COMMIT =
-  process.env.SOURCE_COMMIT || process.env.GIT_COMMIT || process.env.CF_PAGES_COMMIT_SHA || 'unknown';
-const APP_IMAGE_DIGEST = process.env.IMAGE_DIGEST || process.env.SOURCE_IMAGE_DIGEST || null;
+  process.env.SOURCE_COMMIT ||
+  process.env.GIT_COMMIT ||
+  process.env.CF_PAGES_COMMIT_SHA ||
+  "unknown";
+const APP_IMAGE_DIGEST =
+  process.env.IMAGE_DIGEST || process.env.SOURCE_IMAGE_DIGEST || null;
 
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 
 const SPOOLED_API_KEY = process.env.SPOOLED_API_KEY;
 if (!SPOOLED_API_KEY) {
   // eslint-disable-next-line no-console
-  console.error('Missing required env var: SPOOLED_API_KEY');
+  console.error("Missing required env var: SPOOLED_API_KEY");
   process.exit(1);
 }
 
@@ -32,21 +38,37 @@ const HEALTH_CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 // How many consecutive health check failures before auto-restart
 const MAX_HEALTH_CHECK_FAILURES = 3;
 
-const SPOOLED_BASE_URL = process.env.SPOOLED_BASE_URL || 'https://api.spooled.cloud';
-const SPOOLED_WS_URL = process.env.SPOOLED_WS_URL || 'wss://api.spooled.cloud';
+const SPOOLED_BASE_URL =
+  process.env.SPOOLED_BASE_URL || "https://api.spooled.cloud";
+const SPOOLED_WS_URL = process.env.SPOOLED_WS_URL || "wss://api.spooled.cloud";
 
-const QUEUE_FRAMES = process.env.QUEUE_FRAMES || 'spriteforge-frames';
-const QUEUE_ASSEMBLE = process.env.QUEUE_ASSEMBLE || 'spriteforge-assemble';
-const QUEUE_PUBLIC = process.env.QUEUE_PUBLIC || 'spriteforge-public';
+const QUEUE_FRAMES = process.env.QUEUE_FRAMES || "spriteforge-frames";
+const QUEUE_ASSEMBLE = process.env.QUEUE_ASSEMBLE || "spriteforge-assemble";
+const QUEUE_PUBLIC = process.env.QUEUE_PUBLIC || "spriteforge-public";
 
-const ENABLE_PUBLIC_SCHEDULE = (process.env.ENABLE_PUBLIC_SCHEDULE || 'true').toLowerCase() === 'true';
-const PUBLIC_SCHEDULE_NAME = process.env.PUBLIC_SCHEDULE_NAME || 'spriteforge-public-sprite';
-const PUBLIC_SCHEDULE_CRON = process.env.PUBLIC_SCHEDULE_CRON || '0 * * * * *';
-const PUBLIC_SCHEDULE_TIMEZONE = process.env.PUBLIC_SCHEDULE_TIMEZONE || 'UTC';
+const ENABLE_PUBLIC_SCHEDULE =
+  (process.env.ENABLE_PUBLIC_SCHEDULE || "true").toLowerCase() === "true";
+const PUBLIC_SCHEDULE_NAME =
+  process.env.PUBLIC_SCHEDULE_NAME || "spriteforge-public-sprite";
+const PUBLIC_SCHEDULE_CRON = process.env.PUBLIC_SCHEDULE_CRON || "0 * * * * *";
+const PUBLIC_SCHEDULE_TIMEZONE = process.env.PUBLIC_SCHEDULE_TIMEZONE || "UTC";
+const PUBLIC_SCHEDULE_PAYLOAD_TEMPLATE = {
+  kind: "publicSprite",
+  animation: "dance",
+  frameCount: 8,
+  width: 24,
+  height: 24,
+};
 
-const WORKER_CONCURRENCY_FRAMES = Number(process.env.WORKER_CONCURRENCY_FRAMES || 8);
-const WORKER_CONCURRENCY_ASSEMBLE = Number(process.env.WORKER_CONCURRENCY_ASSEMBLE || 2);
-const WORKER_CONCURRENCY_PUBLIC = Number(process.env.WORKER_CONCURRENCY_PUBLIC || 1);
+const WORKER_CONCURRENCY_FRAMES = Number(
+  process.env.WORKER_CONCURRENCY_FRAMES || 8,
+);
+const WORKER_CONCURRENCY_ASSEMBLE = Number(
+  process.env.WORKER_CONCURRENCY_ASSEMBLE || 2,
+);
+const WORKER_CONCURRENCY_PUBLIC = Number(
+  process.env.WORKER_CONCURRENCY_PUBLIC || 1,
+);
 
 // Job retention: jobs expire after this duration (default 24 hours for demo)
 const JOB_RETENTION_HOURS = Number(process.env.JOB_RETENTION_HOURS || 24);
@@ -82,8 +104,8 @@ const stats = {
   cleanedMappings: 0,
   healthCheckFailures: 0,
   lastHealthCheckAt: null,
-  lastHealthCheckStatus: 'unknown',
-  circuitBreakerState: 'unknown',
+  lastHealthCheckStatus: "unknown",
+  circuitBreakerState: "unknown",
 };
 
 /**
@@ -95,20 +117,22 @@ function startHealthCheck() {
     try {
       // Try to list queues as a lightweight health check
       await client.queues.list();
-      
+
       stats.lastHealthCheckAt = nowIso();
-      stats.lastHealthCheckStatus = 'healthy';
+      stats.lastHealthCheckStatus = "healthy";
       stats.healthCheckFailures = 0;
-      
+
       // Also check circuit breaker state
       try {
         const cbStats = client.getCircuitBreakerStats();
         stats.circuitBreakerState = cbStats.state;
-        
+
         // Log if circuit breaker is not in normal state
-        if (cbStats.state !== 'CLOSED') {
+        if (cbStats.state !== "CLOSED") {
           // eslint-disable-next-line no-console
-          console.warn(`[health] Circuit breaker state: ${cbStats.state}, failures: ${cbStats.failureCount}`);
+          console.warn(
+            `[health] Circuit breaker state: ${cbStats.state}, failures: ${cbStats.failureCount}`,
+          );
         }
       } catch {
         // SDK might not expose this, ignore
@@ -117,30 +141,37 @@ function startHealthCheck() {
       stats.healthCheckFailures++;
       stats.lastHealthCheckAt = nowIso();
       stats.lastHealthCheckStatus = `failed: ${err?.message || err}`;
-      
+
       // eslint-disable-next-line no-console
-      console.error(`[health] API health check failed (${stats.healthCheckFailures}/${MAX_HEALTH_CHECK_FAILURES}):`, err?.message || err);
-      
+      console.error(
+        `[health] API health check failed (${stats.healthCheckFailures}/${MAX_HEALTH_CHECK_FAILURES}):`,
+        err?.message || err,
+      );
+
       // If we've failed too many times, try to reset the circuit breaker
       if (stats.healthCheckFailures >= MAX_HEALTH_CHECK_FAILURES) {
         // eslint-disable-next-line no-console
-        console.warn('[health] Too many consecutive failures, attempting circuit breaker reset...');
+        console.warn(
+          "[health] Too many consecutive failures, attempting circuit breaker reset...",
+        );
         try {
           client.resetCircuitBreaker();
           // eslint-disable-next-line no-console
-          console.log('[health] Circuit breaker reset');
+          console.log("[health] Circuit breaker reset");
         } catch {
           // ignore
         }
-        
+
         // Also restart realtime connection
         scheduleRealtimeRestart();
       }
     }
   }, HEALTH_CHECK_INTERVAL_MS);
-  
+
   // eslint-disable-next-line no-console
-  console.log(`[health] Health check started (interval: ${HEALTH_CHECK_INTERVAL_MS / 1000}s)`);
+  console.log(
+    `[health] Health check started (interval: ${HEALTH_CHECK_INTERVAL_MS / 1000}s)`,
+  );
 }
 
 /**
@@ -180,7 +211,9 @@ function startSessionCleanup() {
     if (cleaned > 0) {
       stats.cleanedMappings += cleaned;
       // eslint-disable-next-line no-console
-      console.log(`[cleanup] Removed ${cleaned} stale session/rate-limit mappings (total cleaned: ${stats.cleanedMappings})`);
+      console.log(
+        `[cleanup] Removed ${cleaned} stale session/rate-limit mappings (total cleaned: ${stats.cleanedMappings})`,
+      );
     }
   }, SESSION_CLEANUP_INTERVAL_MS);
 }
@@ -212,24 +245,24 @@ function getClientIp(req) {
   const header = (name) => {
     const v = req.headers[name];
     if (Array.isArray(v)) return v[0];
-    if (typeof v === 'string' && v.length > 0) return v;
+    if (typeof v === "string" && v.length > 0) return v;
     return null;
   };
 
   // Prefer Cloudflare / reverse-proxy headers when present
-  const cf = header('cf-connecting-ip');
-  const xReal = header('x-real-ip');
-  const xff = header('x-forwarded-for');
+  const cf = header("cf-connecting-ip");
+  const xReal = header("x-real-ip");
+  const xff = header("x-forwarded-for");
 
   let ip =
     cf ||
     xReal ||
-    (xff ? xff.split(',')[0].trim() : null) ||
+    (xff ? xff.split(",")[0].trim() : null) ||
     req.socket.remoteAddress ||
-    'unknown';
+    "unknown";
 
   // Normalize IPv6-mapped IPv4 addresses (e.g. ::ffff:127.0.0.1)
-  if (typeof ip === 'string' && ip.startsWith('::ffff:')) ip = ip.slice(7);
+  if (typeof ip === "string" && ip.startsWith("::ffff:")) ip = ip.slice(7);
   return ip;
 }
 
@@ -244,7 +277,7 @@ function rateLimitOrThrow(ip, { capacity, refillPerSec }) {
   state.tokens = Math.min(capacity, state.tokens + elapsed * refillPerSec);
   state.last = now;
   if (state.tokens < 1) {
-    throw Object.assign(new Error('rate_limited'), { statusCode: 429 });
+    throw Object.assign(new Error("rate_limited"), { statusCode: 429 });
   }
   state.tokens -= 1;
   ipBuckets.set(ip, state);
@@ -274,47 +307,52 @@ async function readJson(req) {
   for await (const chunk of req) {
     total += chunk.length;
     if (total > MAX_BODY_BYTES) {
-      throw Object.assign(new Error('payload_too_large'), { statusCode: 413 });
+      throw Object.assign(new Error("payload_too_large"), { statusCode: 413 });
     }
     chunks.push(chunk);
   }
-  const raw = Buffer.concat(chunks).toString('utf8');
+  const raw = Buffer.concat(chunks).toString("utf8");
   try {
     return JSON.parse(raw);
   } catch {
-    throw Object.assign(new Error('invalid_json'), { statusCode: 400 });
+    throw Object.assign(new Error("invalid_json"), { statusCode: 400 });
   }
 }
 
 function sendJson(res, statusCode, body) {
   const text = JSON.stringify(body);
   res.writeHead(statusCode, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(text),
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(text),
   });
   res.end(text);
 }
 
-function sendText(res, statusCode, text, contentType = 'text/plain; charset=utf-8') {
-  res.writeHead(statusCode, { 'Content-Type': contentType });
+function sendText(
+  res,
+  statusCode,
+  text,
+  contentType = "text/plain; charset=utf-8",
+) {
+  res.writeHead(statusCode, { "Content-Type": contentType });
   res.end(text);
 }
 
 function sendNoCacheJson(res, statusCode, body) {
   const text = JSON.stringify(body);
   res.writeHead(statusCode, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(text),
-    'Cache-Control': 'no-store',
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": Buffer.byteLength(text),
+    "Cache-Control": "no-store",
   });
   res.end(text);
 }
 
 function safeJoinPublic(relPath) {
-  const safe = relPath.replace(/^\/+/, '');
+  const safe = relPath.replace(/^\/+/, "");
   const full = path.join(PUBLIC_DIR, safe);
   if (!full.startsWith(PUBLIC_DIR)) {
-    throw Object.assign(new Error('bad_path'), { statusCode: 400 });
+    throw Object.assign(new Error("bad_path"), { statusCode: 400 });
   }
   return full;
 }
@@ -322,39 +360,42 @@ function safeJoinPublic(relPath) {
 function contentTypeFor(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   switch (ext) {
-    case '.html':
-      return 'text/html; charset=utf-8';
-    case '.js':
-      return 'text/javascript; charset=utf-8';
-    case '.css':
-      return 'text/css; charset=utf-8';
-    case '.svg':
-      return 'image/svg+xml';
-    case '.png':
-      return 'image/png';
-    case '.ico':
-      return 'image/x-icon';
-    case '.json':
-      return 'application/json; charset=utf-8';
+    case ".html":
+      return "text/html; charset=utf-8";
+    case ".js":
+      return "text/javascript; charset=utf-8";
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
+    case ".png":
+      return "image/png";
+    case ".ico":
+      return "image/x-icon";
+    case ".json":
+      return "application/json; charset=utf-8";
     default:
-      return 'application/octet-stream';
+      return "application/octet-stream";
   }
 }
 
 function serveStatic(req, res) {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
-  const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
+  const url = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host || "localhost"}`,
+  );
+  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
 
   const filePath = safeJoinPublic(pathname);
   if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-    sendText(res, 404, 'Not found');
+    sendText(res, 404, "Not found");
     return;
   }
 
   // Disable caching for the demo to avoid stale JS/CSS when we iterate quickly.
   res.writeHead(200, {
-    'Content-Type': contentTypeFor(filePath),
-    'Cache-Control': 'no-store',
+    "Content-Type": contentTypeFor(filePath),
+    "Cache-Control": "no-store",
   });
   createReadStream(filePath).pipe(res);
 }
@@ -366,9 +407,9 @@ const client = new SpooledClient({
   baseUrl: SPOOLED_BASE_URL,
   wsUrl: SPOOLED_WS_URL,
   debug: (msg, meta) => {
-    if ((process.env.DEBUG || '').toLowerCase() === 'true') {
+    if ((process.env.DEBUG || "").toLowerCase() === "true") {
       // eslint-disable-next-line no-console
-      console.log(`[spooled] ${msg}`, meta ?? '');
+      console.log(`[spooled] ${msg}`, meta ?? "");
     }
   },
 });
@@ -378,7 +419,7 @@ async function sleep(ms) {
 }
 
 function seededFloat(seed) {
-  const h = crypto.createHash('sha256').update(seed).digest();
+  const h = crypto.createHash("sha256").update(seed).digest();
   // Use first 4 bytes as uint32
   const n = h.readUInt32BE(0);
   return n / 0xffffffff;
@@ -394,14 +435,14 @@ async function startWorkers() {
 
   framesWorker.process(async (ctx) => {
     const p = ctx.payload || {};
-    const seed = String(p.seed || 'seed');
-    const paletteName = String(p.paletteName || 'neon');
-    const animation = String(p.animation || 'walk');
+    const seed = String(p.seed || "seed");
+    const paletteName = String(p.paletteName || "neon");
+    const animation = String(p.animation || "walk");
     const frameIndex = Number(p.frameIndex || 0);
     const frameCount = Number(p.frameCount || 8);
     const width = Number(p.width || 24);
     const height = Number(p.height || 24);
-    const sessionId = String(p.sessionId || '');
+    const sessionId = String(p.sessionId || "");
 
     const failChance = clampNum(Number(p.failChance || 0), 0, 0.9);
     const failSeed = `${ctx.jobId}|${seed}|${frameIndex}|attempt:${ctx.retryCount}`;
@@ -414,13 +455,23 @@ async function startWorkers() {
     if (failChance > 0 && ctx.retryCount < 2) {
       const roll = seededFloat(`${failSeed}|roll`);
       if (roll < failChance) {
-        throw new Error('SpriteForge glitch (transient) — demonstrating retries');
+        throw new Error(
+          "SpriteForge glitch (transient) — demonstrating retries",
+        );
       }
     }
 
-    const frame = generateFrame({ seed, paletteName, animation, frameIndex, frameCount, width, height });
+    const frame = generateFrame({
+      seed,
+      paletteName,
+      animation,
+      frameIndex,
+      frameCount,
+      width,
+      height,
+    });
     return {
-      kind: 'frame',
+      kind: "frame",
       sessionId,
       seed,
       paletteName: frame.paletteName,
@@ -446,10 +497,10 @@ async function startWorkers() {
 
   assembleWorker.process(async (ctx) => {
     const p = ctx.payload || {};
-    const sessionId = String(p.sessionId || '');
-    const seed = String(p.seed || 'seed');
-    const paletteName = String(p.paletteName || 'neon');
-    const animation = String(p.animation || 'walk');
+    const sessionId = String(p.sessionId || "");
+    const seed = String(p.seed || "seed");
+    const paletteName = String(p.paletteName || "neon");
+    const animation = String(p.animation || "walk");
     const frameCount = Number(p.frameCount || 8);
     const width = Number(p.width || 24);
     const height = Number(p.height || 24);
@@ -462,7 +513,7 @@ async function startWorkers() {
     const frames = [];
     for (const jobId of depJobIds) {
       const job = await client.jobs.get(jobId);
-      if (!job.result || typeof job.result !== 'object') {
+      if (!job.result || typeof job.result !== "object") {
         throw new Error(`Missing result for frame job: ${jobId}`);
       }
       frames.push({
@@ -480,7 +531,7 @@ async function startWorkers() {
     await sleep(200 + Math.floor(seededFloat(`${ctx.jobId}|assemble`) * 350));
 
     return {
-      kind: 'sprite',
+      kind: "sprite",
       sessionId,
       seed,
       paletteName,
@@ -505,8 +556,12 @@ async function startWorkers() {
 
   publicWorker.process(async (ctx) => {
     const p = ctx.payload || {};
-    const animation = String(p.animation || 'dance');
-    const paletteName = String(p.paletteName || PALETTES[Math.floor(seededFloat(`${ctx.jobId}|pal`) * PALETTES.length)].name);
+    const animation = String(p.animation || "dance");
+    const paletteName = String(
+      p.paletteName ||
+        PALETTES[Math.floor(seededFloat(`${ctx.jobId}|pal`) * PALETTES.length)]
+          .name,
+    );
     const frameCount = clampInt(Number(p.frameCount || 8), 2, 12);
     const width = clampInt(Number(p.width || 24), 16, 32);
     const height = clampInt(Number(p.height || 24), 16, 32);
@@ -515,14 +570,22 @@ async function startWorkers() {
     const palette = getPaletteByName(paletteName).colors;
     const frames = [];
     for (let i = 0; i < frameCount; i++) {
-      const frame = generateFrame({ seed, paletteName, animation, frameIndex: i, frameCount, width, height });
+      const frame = generateFrame({
+        seed,
+        paletteName,
+        animation,
+        frameIndex: i,
+        frameCount,
+        width,
+        height,
+      });
       frames.push(frame.pixels);
     }
 
     await sleep(250 + Math.floor(seededFloat(`${ctx.jobId}|public`) * 650));
 
     return {
-      kind: 'publicSprite',
+      kind: "publicSprite",
       seed,
       paletteName,
       animation,
@@ -539,7 +602,7 @@ async function startWorkers() {
 
   // eslint-disable-next-line no-console
   console.log(
-    `Workers started: frames(${QUEUE_FRAMES}) assemble(${QUEUE_ASSEMBLE}) public(${QUEUE_PUBLIC})`
+    `Workers started: frames(${QUEUE_FRAMES}) assemble(${QUEUE_ASSEMBLE}) public(${QUEUE_PUBLIC})`,
   );
 
   // Graceful shutdown
@@ -552,8 +615,8 @@ async function startWorkers() {
       process.exit(0);
     }
   };
-  process.on('SIGTERM', stop);
-  process.on('SIGINT', stop);
+  process.on("SIGTERM", stop);
+  process.on("SIGINT", stop);
 }
 
 function clampInt(n, min, max) {
@@ -587,16 +650,18 @@ async function startRealtime() {
 
   try {
     // Use WebSocket for real-time events (SSE only sends health checks)
-    const realtime = /** @type {SpooledRealtime} */ (await client.realtime({ type: 'websocket' }));
+    const realtime = /** @type {SpooledRealtime} */ (
+      await client.realtime({ type: "websocket" })
+    );
     currentRealtime = realtime;
 
     realtime.onStateChange((state) => {
       // eslint-disable-next-line no-console
       console.log(`[realtime] state changed: ${state}`);
-      broadcastAll('server.realtime', { state, at: nowIso() });
+      broadcastAll("server.realtime", { state, at: nowIso() });
 
       // If connection is fully disconnected (SDK gave up reconnecting), schedule a fresh restart
-      if (state === 'disconnected') {
+      if (state === "disconnected") {
         scheduleRealtimeRestart();
       } else if (realtimeRestartTimer) {
         // Connected or reconnecting - cancel any pending restart
@@ -614,28 +679,32 @@ async function startRealtime() {
 
       // Normalize event type for comparison (backend sends PascalCase like "JobCompleted")
       const eventType = event.type;
-      const normalizedType = eventType.replace(/([a-z])([A-Z])/g, '$1.$2').toLowerCase();
+      const normalizedType = eventType
+        .replace(/([a-z])([A-Z])/g, "$1.$2")
+        .toLowerCase();
 
       // Log all received events for debugging (uncomment in production if events aren't showing)
       // eslint-disable-next-line no-console
-      console.log(`[realtime] ${eventType} job=${jobId?.slice?.(0,8) || 'n/a'} queue=${queueName || 'n/a'} tracked=${jobIdToSession.has(jobId)}`);
+      console.log(
+        `[realtime] ${eventType} job=${jobId?.slice?.(0, 8) || "n/a"} queue=${queueName || "n/a"} tracked=${jobIdToSession.has(jobId)}`,
+      );
 
       // Many realtime events only include identifiers; the authoritative status/retry/result live on the Job record.
       // Fetch on completion/failure to make the UI accurate and to avoid missing fields.
       // Only fetch full job details for SpriteForge-tracked jobs or the public demo queue.
       // Otherwise we'd create unnecessary load and potentially leak data from unrelated jobs in the org.
-      const isTracked = typeof jobId === 'string' && jobIdToSession.has(jobId);
+      const isTracked = typeof jobId === "string" && jobIdToSession.has(jobId);
       const isPublic = queueName === QUEUE_PUBLIC;
 
       /** @type {any | undefined} */
       let fetchedJob = undefined;
       const shouldFetchJob =
         (isTracked || isPublic) &&
-        typeof jobId === 'string' &&
-        (eventType === 'JobCompleted' ||
-          normalizedType === 'job.completed' ||
-          eventType === 'JobFailed' ||
-          normalizedType === 'job.failed');
+        typeof jobId === "string" &&
+        (eventType === "JobCompleted" ||
+          normalizedType === "job.completed" ||
+          eventType === "JobFailed" ||
+          normalizedType === "job.failed");
 
       if (shouldFetchJob) {
         try {
@@ -655,7 +724,10 @@ async function startRealtime() {
         data.retryCount ??
         undefined;
 
-      if ((eventType === 'JobCompleted' || normalizedType === 'job.completed') && queueName === QUEUE_PUBLIC) {
+      if (
+        (eventType === "JobCompleted" || normalizedType === "job.completed") &&
+        queueName === QUEUE_PUBLIC
+      ) {
         // Broadcast the latest public sprite to all
         lastPublicSprite = {
           ...event,
@@ -667,11 +739,11 @@ async function startRealtime() {
           },
           at: nowIso(),
         };
-        broadcastAll('public.sprite', lastPublicSprite);
+        broadcastAll("public.sprite", lastPublicSprite);
         return;
       }
 
-      if (typeof jobId === 'string' && jobIdToSession.has(jobId)) {
+      if (typeof jobId === "string" && jobIdToSession.has(jobId)) {
         const sessionId = jobIdToSession.get(jobId)?.sessionId;
         // Transform event to use camelCase for the frontend
         const transformedEvent = {
@@ -687,8 +759,10 @@ async function startRealtime() {
           },
         };
         // eslint-disable-next-line no-console
-        console.log(`[broadcast] → session ${sessionId?.slice(0,8)} event=${normalizedType} job=${jobId?.slice(0,8)}`);
-        broadcastSession(sessionId, 'spooled', {
+        console.log(
+          `[broadcast] → session ${sessionId?.slice(0, 8)} event=${normalizedType} job=${jobId?.slice(0, 8)}`,
+        );
+        broadcastSession(sessionId, "spooled", {
           ...transformedEvent,
           meta: {
             sessionId,
@@ -701,22 +775,26 @@ async function startRealtime() {
       // For job events where we have a jobId but it's not tracked yet (e.g., created in another context)
       // Still broadcast if it matches our demo queues
       if (
-        typeof jobId === 'string' &&
-        (queueName === QUEUE_FRAMES || queueName === QUEUE_ASSEMBLE || queueName === QUEUE_PUBLIC)
+        typeof jobId === "string" &&
+        (queueName === QUEUE_FRAMES ||
+          queueName === QUEUE_ASSEMBLE ||
+          queueName === QUEUE_PUBLIC)
       ) {
         // eslint-disable-next-line no-console
-        console.log(`[realtime] Untracked job event for demo queue: ${eventType} job=${jobId.slice(0,8)}`);
+        console.log(
+          `[realtime] Untracked job event for demo queue: ${eventType} job=${jobId.slice(0, 8)}`,
+        );
       }
 
       // Global events: queue pause/resume, schedule triggers, etc.
       if (
-        normalizedType.startsWith('queue.') ||
-        normalizedType.startsWith('worker.') ||
-        normalizedType.startsWith('schedule.') ||
-        normalizedType === 'heartbeat' ||
-        eventType === 'Ping'
+        normalizedType.startsWith("queue.") ||
+        normalizedType.startsWith("worker.") ||
+        normalizedType.startsWith("schedule.") ||
+        normalizedType === "heartbeat" ||
+        eventType === "Ping"
       ) {
-        broadcastAll('spooled', event);
+        broadcastAll("spooled", event);
       }
     };
 
@@ -725,7 +803,7 @@ async function startRealtime() {
     realtime.onEvent((event) => {
       void handleEvent(event).catch((err) => {
         // eslint-disable-next-line no-console
-        console.warn('Realtime event handler error:', err?.message || err);
+        console.warn("Realtime event handler error:", err?.message || err);
       });
     });
 
@@ -736,12 +814,17 @@ async function startRealtime() {
     // doesn't respond to subscribe commands in the SDK's expected format.
 
     // eslint-disable-next-line no-console
-    console.log(`✅ Spooled realtime connected (WebSocket) to ${SPOOLED_WS_URL}/api/v1/ws`);
+    console.log(
+      `✅ Spooled realtime connected (WebSocket) to ${SPOOLED_WS_URL}/api/v1/ws`,
+    );
 
     return realtime;
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.warn('Spooled realtime connection failed (continuing without live updates):', error?.message || error);
+    console.warn(
+      "Spooled realtime connection failed (continuing without live updates):",
+      error?.message || error,
+    );
     // Schedule a restart attempt
     scheduleRealtimeRestart();
     return null;
@@ -758,7 +841,9 @@ function scheduleRealtimeRestart() {
   }
 
   // eslint-disable-next-line no-console
-  console.log(`[realtime] Will attempt fresh restart in ${REALTIME_RESTART_DELAY_MS / 1000}s...`);
+  console.log(
+    `[realtime] Will attempt fresh restart in ${REALTIME_RESTART_DELAY_MS / 1000}s...`,
+  );
 
   realtimeRestartTimer = setTimeout(async () => {
     realtimeRestartTimer = null;
@@ -774,15 +859,26 @@ function scheduleRealtimeRestart() {
     }
 
     // eslint-disable-next-line no-console
-    console.log('[realtime] Attempting fresh restart...');
+    console.log("[realtime] Attempting fresh restart...");
     await startRealtime();
   }, REALTIME_RESTART_DELAY_MS);
+}
+
+function isPublicScheduleCurrent(schedule) {
+  return (
+    schedule.cronExpression === PUBLIC_SCHEDULE_CRON &&
+    schedule.timezone === PUBLIC_SCHEDULE_TIMEZONE &&
+    Number(schedule.maxRetries) === 3 &&
+    Number(schedule.timeoutSeconds) === 60 &&
+    JSON.stringify(schedule.payloadTemplate || {}) ===
+      JSON.stringify(PUBLIC_SCHEDULE_PAYLOAD_TEMPLATE)
+  );
 }
 
 async function ensurePublicSchedule() {
   if (!ENABLE_PUBLIC_SCHEDULE) {
     // eslint-disable-next-line no-console
-    console.log('Public schedule disabled (ENABLE_PUBLIC_SCHEDULE=false)');
+    console.log("Public schedule disabled (ENABLE_PUBLIC_SCHEDULE=false)");
     return;
   }
 
@@ -798,67 +894,104 @@ async function ensurePublicSchedule() {
       } catch (listError) {
         // If we can't list (e.g., permission error), try to create anyway
         // eslint-disable-next-line no-console
-        console.warn(`Could not list schedules (attempt ${attempt}):`, listError?.message || listError);
+        console.warn(
+          `Could not list schedules (attempt ${attempt}):`,
+          listError?.message || listError,
+        );
       }
 
       const existing = schedules.find((s) => s.name === PUBLIC_SCHEDULE_NAME);
-      
+
       if (existing) {
         // eslint-disable-next-line no-console
-        console.log(`✓ Public schedule exists: ${existing.id} (cron: ${existing.cronExpression})`);
-        
-        // Resume if paused
-        if (!existing.isActive) {
-          try {
-            await client.schedules.resume(existing.id);
-            // eslint-disable-next-line no-console
-            console.log(`  → Resumed paused schedule: ${existing.id}`);
-          } catch (resumeError) {
-            // eslint-disable-next-line no-console
-            console.warn('  → Failed to resume schedule:', resumeError?.message || resumeError);
+        console.log(
+          `✓ Public schedule exists: ${existing.id} (cron: ${existing.cronExpression})`,
+        );
+
+        if (existing.queueName !== QUEUE_PUBLIC) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `  → Queue changed (${existing.queueName} → ${QUEUE_PUBLIC}); recreating schedule`,
+          );
+          await client.schedules.delete(existing.id);
+        } else if (!isPublicScheduleCurrent(existing)) {
+          const updated = await client.schedules.update(existing.id, {
+            description:
+              "SpriteForge demo: generate a new public sprite periodically",
+            cronExpression: PUBLIC_SCHEDULE_CRON,
+            timezone: PUBLIC_SCHEDULE_TIMEZONE,
+            payloadTemplate: PUBLIC_SCHEDULE_PAYLOAD_TEMPLATE,
+            maxRetries: 3,
+            timeoutSeconds: 60,
+            isActive: true,
+          });
+          // eslint-disable-next-line no-console
+          console.log(`  → Updated public schedule: ${updated.id}`);
+          return;
+        } else {
+          // Resume if paused
+          if (!existing.isActive) {
+            try {
+              await client.schedules.resume(existing.id);
+              // eslint-disable-next-line no-console
+              console.log(`  → Resumed paused schedule: ${existing.id}`);
+            } catch (resumeError) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                "  → Failed to resume schedule:",
+                resumeError?.message || resumeError,
+              );
+            }
           }
+          return; // Success!
         }
-        return; // Success!
       }
 
       // Schedule doesn't exist, create it
       // eslint-disable-next-line no-console
-      console.log(`Creating public schedule "${PUBLIC_SCHEDULE_NAME}" (attempt ${attempt})...`);
+      console.log(
+        `Creating public schedule "${PUBLIC_SCHEDULE_NAME}" (attempt ${attempt})...`,
+      );
 
       const created = await client.schedules.create({
         name: PUBLIC_SCHEDULE_NAME,
-        description: 'SpriteForge demo: generate a new public sprite periodically',
+        description:
+          "SpriteForge demo: generate a new public sprite periodically",
         cronExpression: PUBLIC_SCHEDULE_CRON,
         timezone: PUBLIC_SCHEDULE_TIMEZONE,
         queueName: QUEUE_PUBLIC,
-        payloadTemplate: {
-          kind: 'publicSprite',
-          animation: 'dance',
-          frameCount: 8,
-          width: 24,
-          height: 24,
-        },
+        payloadTemplate: PUBLIC_SCHEDULE_PAYLOAD_TEMPLATE,
         maxRetries: 3,
         timeoutSeconds: 60,
       });
 
       // eslint-disable-next-line no-console
-      console.log(`✓ Created public schedule: ${created.id} (next run: ${created.nextRunAt || 'unknown'})`);
+      console.log(
+        `✓ Created public schedule: ${created.id} (next run: ${created.nextRunAt || "unknown"})`,
+      );
       return; // Success!
-
     } catch (error) {
-      const errorCode = error?.code || error?.statusCode || 'unknown';
+      const errorCode = error?.code || error?.statusCode || "unknown";
       const errorMsg = error?.message || String(error);
 
       // Handle "already exists" gracefully (race condition or previous API key had same schedule)
-      if (errorCode === 'CONFLICT' || errorMsg.includes('already exists') || errorMsg.includes('duplicate')) {
+      if (
+        errorCode === "CONFLICT" ||
+        errorMsg.includes("already exists") ||
+        errorMsg.includes("duplicate")
+      ) {
         // eslint-disable-next-line no-console
-        console.log(`✓ Public schedule already exists (created by another instance or previous run)`);
+        console.log(
+          `✓ Public schedule already exists (created by another instance or previous run)`,
+        );
         return;
       }
 
       // eslint-disable-next-line no-console
-      console.warn(`Schedule setup attempt ${attempt}/${maxAttempts} failed:`, errorMsg);
+      console.warn(
+        `Schedule setup attempt ${attempt}/${maxAttempts} failed:`,
+        errorMsg,
+      );
 
       if (attempt < maxAttempts) {
         await new Promise((r) => setTimeout(r, retryDelayMs * attempt));
@@ -868,28 +1001,34 @@ async function ensurePublicSchedule() {
 
   // All attempts failed, continue without schedule
   // eslint-disable-next-line no-console
-  console.warn('⚠ Public schedule setup failed after all attempts (continuing without it)');
+  console.warn(
+    "⚠ Public schedule setup failed after all attempts (continuing without it)",
+  );
 }
 
 // ---- HTTP routes ----
 
 function handleSse(req, res) {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
-  const sessionId = url.searchParams.get('sessionId') || crypto.randomUUID();
+  const url = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host || "localhost"}`,
+  );
+  const sessionId = url.searchParams.get("sessionId") || crypto.randomUUID();
 
   res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
   });
 
   // Register
-  if (!sseClientsBySession.has(sessionId)) sseClientsBySession.set(sessionId, new Set());
+  if (!sseClientsBySession.has(sessionId))
+    sseClientsBySession.set(sessionId, new Set());
   sseClientsBySession.get(sessionId).add(res);
 
   // Hello event with config + palette list + last public sprite
-  sseWrite(res, 'hello', {
+  sseWrite(res, "hello", {
     sessionId,
     serverTime: nowIso(),
     queues: {
@@ -902,10 +1041,10 @@ function handleSse(req, res) {
   });
 
   const heartbeat = setInterval(() => {
-    sseWrite(res, 'ping', { t: Date.now() });
+    sseWrite(res, "ping", { t: Date.now() });
   }, 15000);
 
-  req.on('close', () => {
+  req.on("close", () => {
     clearInterval(heartbeat);
     const set = sseClientsBySession.get(sessionId);
     if (set) {
@@ -922,22 +1061,25 @@ async function handleForge(req, res) {
   rateLimitOrThrow(ip, { capacity: 6, refillPerSec: 1 });
 
   const body = await readJson(req);
-  const sessionId = String(body.sessionId || '');
-  const seed = String(body.seed || '').slice(0, 64) || crypto.randomUUID().slice(0, 8);
-  const paletteName = String(body.paletteName || 'neon');
-  const animation = String(body.animation || 'walk');
+  const sessionId = String(body.sessionId || "");
+  const seed =
+    String(body.seed || "").slice(0, 64) || crypto.randomUUID().slice(0, 8);
+  const paletteName = String(body.paletteName || "neon");
+  const animation = String(body.animation || "walk");
   const frameCount = clampInt(Number(body.frameCount || 8), 2, MAX_FRAMES);
   const width = clampInt(Number(body.width || 24), 16, 32);
   const height = clampInt(Number(body.height || 24), 16, 32);
   const failChance = clampNum(Number(body.failChance || 0), 0, 0.9);
 
   if (!sessionId) {
-    sendJson(res, 400, { error: 'missing_session_id' });
+    sendJson(res, 400, { error: "missing_session_id" });
     return;
   }
 
   // Calculate expiration time for jobs (demo jobs should auto-cleanup)
-  const expiresAt = new Date(Date.now() + JOB_RETENTION_HOURS * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + JOB_RETENTION_HOURS * 60 * 60 * 1000,
+  ).toISOString();
 
   const jobs = [];
   for (let i = 0; i < frameCount; i++) {
@@ -945,7 +1087,7 @@ async function handleForge(req, res) {
       key: `frame-${i}`,
       queueName: QUEUE_FRAMES,
       payload: {
-        kind: 'frame',
+        kind: "frame",
         sessionId,
         seed,
         paletteName,
@@ -963,11 +1105,11 @@ async function handleForge(req, res) {
   }
 
   jobs.push({
-    key: 'assemble',
+    key: "assemble",
     queueName: QUEUE_ASSEMBLE,
-    dependsOn: jobs.filter((j) => j.key.startsWith('frame-')).map((j) => j.key),
+    dependsOn: jobs.filter((j) => j.key.startsWith("frame-")).map((j) => j.key),
     payload: {
-      kind: 'assemble',
+      kind: "assemble",
       sessionId,
       seed,
       paletteName,
@@ -981,7 +1123,9 @@ async function handleForge(req, res) {
     expiresAt,
   });
 
-  const workflowName = `spriteforge-${sessionId}-${seed}`.replace(/[^a-zA-Z0-9._-]/g, '-').slice(0, 120);
+  const workflowName = `spriteforge-${sessionId}-${seed}`
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .slice(0, 120);
 
   let created;
   try {
@@ -989,36 +1133,46 @@ async function handleForge(req, res) {
       name: workflowName,
       jobs,
       metadata: {
-        demo: 'spriteforge',
+        demo: "spriteforge",
         sessionId,
         seed,
       },
     });
   } catch (workflowError) {
     // Log detailed error info for debugging
-    const errorInfo = typeof workflowError?.toJSON === 'function' 
-      ? workflowError.toJSON() 
-      : { message: workflowError?.message, code: workflowError?.code, statusCode: workflowError?.statusCode };
-    
+    const errorInfo =
+      typeof workflowError?.toJSON === "function"
+        ? workflowError.toJSON()
+        : {
+            message: workflowError?.message,
+            code: workflowError?.code,
+            statusCode: workflowError?.statusCode,
+          };
+
     // eslint-disable-next-line no-console
-    console.error('Workflow creation failed:', errorInfo);
-    
+    console.error("Workflow creation failed:", errorInfo);
+
     // Log circuit breaker state when errors occur
     try {
       const cbStats = client.getCircuitBreakerStats();
       // eslint-disable-next-line no-console
-      console.error('  Circuit breaker state:', cbStats.state, 'failures:', cbStats.failureCount);
+      console.error(
+        "  Circuit breaker state:",
+        cbStats.state,
+        "failures:",
+        cbStats.failureCount,
+      );
       stats.circuitBreakerState = cbStats.state;
     } catch {
       // ignore
     }
-    
+
     // If this is an auth error, update health status
     if (workflowError?.statusCode === 401) {
       stats.healthCheckFailures++;
       stats.lastHealthCheckStatus = `auth_failed: ${workflowError?.message}`;
     }
-    
+
     throw workflowError;
   }
 
@@ -1030,9 +1184,11 @@ async function handleForge(req, res) {
     jobIdToSession.set(j.jobId, { sessionId, createdAt });
     jobIdToKey.set(j.jobId, j.key);
   }
-  
+
   // eslint-disable-next-line no-console
-  console.log(`[forge] Tracking ${created.jobIds.length} jobs for session ${sessionId.slice(0,8)}: ${created.jobIds.map(j => j.jobId.slice(0,8)).join(', ')}`);
+  console.log(
+    `[forge] Tracking ${created.jobIds.length} jobs for session ${sessionId.slice(0, 8)}: ${created.jobIds.map((j) => j.jobId.slice(0, 8)).join(", ")}`,
+  );
 
   // Update stats
   stats.totalWorkflows++;
@@ -1050,11 +1206,11 @@ async function handleJobsBatch(req, res) {
   rateLimitOrThrow(`${ip}|jobs_batch`, { capacity: 20, refillPerSec: 8 });
 
   const body = await readJson(req);
-  const sessionId = String(body.sessionId || '');
+  const sessionId = String(body.sessionId || "");
   const jobIds = Array.isArray(body.jobIds) ? body.jobIds : [];
   const includeResult = Boolean(body.includeResult);
   if (!sessionId) {
-    sendNoCacheJson(res, 400, { error: 'missing_session_id' });
+    sendNoCacheJson(res, 400, { error: "missing_session_id" });
     return;
   }
   if (jobIds.length === 0) {
@@ -1066,7 +1222,7 @@ async function handleJobsBatch(req, res) {
   // Also: only allow fetching jobIds that belong to this session (prevents probing arbitrary job IDs).
   const capped = jobIds
     .slice(0, 50)
-    .filter((id) => typeof id === 'string' && id.length > 0)
+    .filter((id) => typeof id === "string" && id.length > 0)
     .filter((jobId) => jobIdToSession.get(jobId)?.sessionId === sessionId);
   const jobsOut = await mapLimit(capped, 8, async (jobId) => {
     try {
@@ -1091,18 +1247,21 @@ async function handleJobsBatch(req, res) {
 
 const server = http.createServer(async (req, res) => {
   try {
-    const method = req.method || 'GET';
-    const url = new URL(req.url ?? '/', `http://${req.headers.host || 'localhost'}`);
+    const method = req.method || "GET";
+    const url = new URL(
+      req.url ?? "/",
+      `http://${req.headers.host || "localhost"}`,
+    );
 
-    if (method === 'GET' && url.pathname === '/health') {
+    if (method === "GET" && url.pathname === "/health") {
       // Determine health status based on recent API connectivity
       const isHealthy = stats.healthCheckFailures < MAX_HEALTH_CHECK_FAILURES;
-      
-      sendJson(res, isHealthy ? 200 : 503, { 
-        ok: isHealthy, 
+
+      sendJson(res, isHealthy ? 200 : 503, {
+        ok: isHealthy,
         at: nowIso(),
         app: {
-          name: PACKAGE_JSON.name || 'spooled-example-spriteforge',
+          name: PACKAGE_JSON.name || "spooled-example-spriteforge",
           version: APP_VERSION,
           commit: APP_COMMIT,
           imageDigest: APP_IMAGE_DIGEST,
@@ -1125,41 +1284,46 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (method === 'GET' && url.pathname === '/api/events') {
+    if (method === "GET" && url.pathname === "/api/events") {
       handleSse(req, res);
       return;
     }
 
-    if (method === 'POST' && url.pathname === '/api/forge') {
+    if (method === "POST" && url.pathname === "/api/forge") {
       await handleForge(req, res);
       return;
     }
 
-    if (method === 'POST' && url.pathname === '/api/jobs/batch') {
+    if (method === "POST" && url.pathname === "/api/jobs/batch") {
       await handleJobsBatch(req, res);
       return;
     }
 
     // Static UI
-    if (method === 'GET') {
+    if (method === "GET") {
       serveStatic(req, res);
       return;
     }
 
-    sendText(res, 404, 'Not found');
+    sendText(res, 404, "Not found");
   } catch (error) {
     const status = Number(error?.statusCode) || 500;
     const code =
-      error?.message === 'rate_limited'
-        ? 'rate_limited'
-        : error?.message === 'payload_too_large'
-          ? 'payload_too_large'
-          : error?.message === 'invalid_json'
-            ? 'invalid_json'
-            : (typeof error?.code === 'string' ? error.code : 'internal_error');
+      error?.message === "rate_limited"
+        ? "rate_limited"
+        : error?.message === "payload_too_large"
+          ? "payload_too_large"
+          : error?.message === "invalid_json"
+            ? "invalid_json"
+            : typeof error?.code === "string"
+              ? error.code
+              : "internal_error";
 
     // Include the message to make debugging the demo much easier
-    sendJson(res, status, { error: code, message: error?.message || String(error) });
+    sendJson(res, status, {
+      error: code,
+      message: error?.message || String(error),
+    });
   }
 });
 
@@ -1167,17 +1331,23 @@ const server = http.createServer(async (req, res) => {
 
 (async function main() {
   // eslint-disable-next-line no-console
-  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(
+    "═══════════════════════════════════════════════════════════════",
+  );
   // eslint-disable-next-line no-console
-  console.log('  SpriteForge — Spooled Cloud Demo');
+  console.log("  SpriteForge — Spooled Cloud Demo");
   // eslint-disable-next-line no-console
-  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(
+    "═══════════════════════════════════════════════════════════════",
+  );
   // eslint-disable-next-line no-console
   console.log(`  API: ${SPOOLED_BASE_URL}`);
   // eslint-disable-next-line no-console
   console.log(`  Job retention: ${JOB_RETENTION_HOURS} hours`);
   // eslint-disable-next-line no-console
-  console.log('───────────────────────────────────────────────────────────────');
+  console.log(
+    "───────────────────────────────────────────────────────────────",
+  );
 
   await startWorkers();
   await startRealtime();
@@ -1185,22 +1355,24 @@ const server = http.createServer(async (req, res) => {
 
   // Start periodic cleanup of session mappings to prevent memory leaks
   startSessionCleanup();
-  
+
   // Start periodic health check to detect API connectivity issues
   startHealthCheck();
 
   server.listen(PORT, HOST, () => {
     // eslint-disable-next-line no-console
-    console.log('───────────────────────────────────────────────────────────────');
+    console.log(
+      "───────────────────────────────────────────────────────────────",
+    );
     // eslint-disable-next-line no-console
     console.log(`✓ Server listening on http://${HOST}:${PORT}`);
     // eslint-disable-next-line no-console
-    console.log('═══════════════════════════════════════════════════════════════');
+    console.log(
+      "═══════════════════════════════════════════════════════════════",
+    );
   });
 })().catch((err) => {
   // eslint-disable-next-line no-console
-  console.error('Fatal error during startup:', err);
+  console.error("Fatal error during startup:", err);
   process.exit(1);
 });
-
-

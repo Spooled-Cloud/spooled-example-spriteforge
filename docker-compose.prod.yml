@@ -39,6 +39,8 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       NODE_ENV: production
+      SOURCE_COMMIT: ${SOURCE_COMMIT:-unknown}
+      IMAGE_DIGEST: ${IMAGE_DIGEST:-}
 
       # Spooled Configuration (Required)
       SPOOLED_API_KEY: ${SPOOLED_API_KEY}
@@ -57,6 +59,7 @@ services:
 
       # Public Schedule ("Sprite of the Minute")
       ENABLE_PUBLIC_SCHEDULE: ${ENABLE_PUBLIC_SCHEDULE:-true}
+      PUBLIC_SCHEDULE_NAME: ${PUBLIC_SCHEDULE_NAME:-spriteforge-public-sprite}
       PUBLIC_SCHEDULE_CRON: ${PUBLIC_SCHEDULE_CRON:-0 * * * * *}
       PUBLIC_SCHEDULE_TIMEZONE: ${PUBLIC_SCHEDULE_TIMEZONE:-UTC}
 
@@ -64,7 +67,13 @@ services:
       JOB_RETENTION_HOURS: ${JOB_RETENTION_HOURS:-24}
 
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

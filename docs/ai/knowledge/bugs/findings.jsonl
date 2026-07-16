@@ -3,3 +3,6 @@
 {"id":"SF-03","sev":"P1","summary":"package-lock app version lagged package.json","status":"fixed","path":"package-lock.json","note":"Working tree syncs root version to 1.0.15"}
 {"id":"SF-04","sev":"P3","summary":"HTML/manifest referenced missing generated OG/PWA assets","status":"fixed","path":"public/index.html","note":"Working tree points metadata/manifest to existing SVG assets"}
 {"id":"SF-05","sev":"P3","summary":"/health lacked app version/commit identity","status":"fixed","path":"server/server.mjs","note":"Working tree returns app identity fields"}
+{"id":"SF-06","sev":"P2","summary":"CI/deploy paths did not wire /health app commit/digest identity","status":"fixed","path":"Dockerfile .github/workflows/ci.yml docker-compose*.yml","note":"Working tree bakes SOURCE_COMMIT and exposes optional IMAGE_DIGEST"}
+{"id":"SF-07","sev":"P2","summary":"existing public schedule ignored cron/timezone/payload/queue config drift","status":"fixed","path":"server/server.mjs","note":"Working tree updates matching schedules and recreates when target queue changes"}
+{"id":"SF-08","sev":"P3","summary":"robots.txt advertised missing sitemap","status":"fixed","path":"public/sitemap.xml","note":"Working tree adds static sitemap"}

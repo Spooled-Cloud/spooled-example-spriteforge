@@ -75,6 +75,7 @@ docker compose -f docker-compose.prod.yml ps
 ### 4. Configure Cloudflare Tunnel
 
 In Cloudflare Zero Trust dashboard:
+
 1. Go to **Networks → Tunnels**
 2. Find your tunnel
 3. Add public hostname: `example.spooled.cloud`
@@ -154,6 +155,7 @@ kubectl logs -f deployment/spooled-example-spriteforge \
 ### 4. DNS & TLS
 
 The included Ingress manifest expects:
+
 - **nginx ingress controller**
 - **cert-manager** with a `letsencrypt-prod` ClusterIssuer
 - DNS A/CNAME record pointing `example.spooled.cloud` to your ingress
@@ -246,63 +248,65 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 
 ### Required
 
-| Variable | Description |
-|----------|-------------|
+| Variable          | Description          |
+| ----------------- | -------------------- |
 | `SPOOLED_API_KEY` | Your Spooled API key |
 
 ### Optional - Spooled Connection
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SPOOLED_BASE_URL` | `https://api.spooled.cloud` | Spooled REST API |
-| `SPOOLED_WS_URL` | `wss://api.spooled.cloud` | Spooled WebSocket |
-| `DEBUG` | unset | Set to `true` for SDK debug logging |
+| Variable           | Default                     | Description                         |
+| ------------------ | --------------------------- | ----------------------------------- |
+| `SPOOLED_BASE_URL` | `https://api.spooled.cloud` | Spooled REST API                    |
+| `SPOOLED_WS_URL`   | `wss://api.spooled.cloud`   | Spooled WebSocket                   |
+| `DEBUG`            | unset                       | Set to `true` for SDK debug logging |
 
 ### Optional - Server
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | HTTP port |
-| `HOST` | `0.0.0.0` | Bind address |
+| Variable   | Default          | Description                                                     |
+| ---------- | ---------------- | --------------------------------------------------------------- |
+| `PORT`     | `3000`           | HTTP port                                                       |
+| `HOST`     | `0.0.0.0`        | Bind address                                                    |
 | `NODE_ENV` | unset by the app | Runtime environment; Docker/Compose/Kubernetes set `production` |
 
 ### Optional - Queues
 
-| Variable | Default |
-|----------|---------|
-| `QUEUE_FRAMES` | `spriteforge-frames` |
+| Variable         | Default                |
+| ---------------- | ---------------------- |
+| `QUEUE_FRAMES`   | `spriteforge-frames`   |
 | `QUEUE_ASSEMBLE` | `spriteforge-assemble` |
-| `QUEUE_PUBLIC` | `spriteforge-public` |
+| `QUEUE_PUBLIC`   | `spriteforge-public`   |
 
 ### Optional - Workers
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKER_CONCURRENCY_FRAMES` | `8` | Concurrent frame jobs |
-| `WORKER_CONCURRENCY_ASSEMBLE` | `2` | Concurrent assemble jobs |
-| `WORKER_CONCURRENCY_PUBLIC` | `1` | Concurrent scheduled public-sprite jobs |
+| Variable                      | Default | Description                             |
+| ----------------------------- | ------- | --------------------------------------- |
+| `WORKER_CONCURRENCY_FRAMES`   | `8`     | Concurrent frame jobs                   |
+| `WORKER_CONCURRENCY_ASSEMBLE` | `2`     | Concurrent assemble jobs                |
+| `WORKER_CONCURRENCY_PUBLIC`   | `1`     | Concurrent scheduled public-sprite jobs |
 
 ### Optional - Schedule
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENABLE_PUBLIC_SCHEDULE` | `true` | Enable "Sprite of the Minute" |
-| `PUBLIC_SCHEDULE_NAME` | `spriteforge-public-sprite` | Idempotent schedule lookup name |
-| `PUBLIC_SCHEDULE_CRON` | `0 * * * * *` | Six-field cron expression (every minute) |
-| `PUBLIC_SCHEDULE_TIMEZONE` | `UTC` | Timezone |
+| Variable                   | Default                     | Description                              |
+| -------------------------- | --------------------------- | ---------------------------------------- |
+| `ENABLE_PUBLIC_SCHEDULE`   | `true`                      | Enable "Sprite of the Minute"            |
+| `PUBLIC_SCHEDULE_NAME`     | `spriteforge-public-sprite` | Idempotent schedule lookup name          |
+| `PUBLIC_SCHEDULE_CRON`     | `0 * * * * *`               | Six-field cron expression (every minute) |
+| `PUBLIC_SCHEDULE_TIMEZONE` | `UTC`                       | Timezone                                 |
 
 ### Optional - Cleanup
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JOB_RETENTION_HOURS` | `24` | Hours until interactive workflow jobs reach their explicit expiration |
+| Variable              | Default | Description                                                           |
+| --------------------- | ------- | --------------------------------------------------------------------- |
+| `JOB_RETENTION_HOURS` | `24`    | Hours until interactive workflow jobs reach their explicit expiration |
 
 ### Optional - Production Compose
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLOUDFLARE_TUNNEL_TOKEN` | none | Required by `docker-compose.prod.yml` for the bundled tunnel |
-| `SPRITEFORGE_IMAGE` | `ghcr.io/spooled-cloud/spooled-example-spriteforge:latest` | Image override for production Compose |
+| Variable                  | Default                                                    | Description                                                                                                |
+| ------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_TUNNEL_TOKEN` | none                                                       | Required by `docker-compose.prod.yml` for the bundled tunnel                                               |
+| `SPRITEFORGE_IMAGE`       | `ghcr.io/spooled-cloud/spooled-example-spriteforge:latest` | Image override for production Compose                                                                      |
+| `SOURCE_COMMIT`           | `unknown`                                                  | Source commit exposed by `/health` as `app.commit`; CI-baked images set this from `github.sha`             |
+| `IMAGE_DIGEST`            | empty                                                      | Optional immutable image digest exposed by `/health` as `app.imageDigest` after deploy tooling resolves it |
 
 > **Retention note:** SpriteForge sets `expiresAt` on interactive workflow jobs. The Spooled backend checks cleanup every five minutes; pending, scheduled, failed, and dead-letter jobs can be removed after explicit expiration, while completed/cancelled jobs and completed/failed/cancelled workflows follow organization retention limits.
 
@@ -334,7 +338,7 @@ The range and lock resolution are intentional compatibility state. At the curren
 `.github/workflows/ci.yml` runs on pull requests, pushes to `main`, and `v*` tag pushes:
 
 - `check` installs with `npm ci`, runs the tag-only application-version assertion when applicable, and checks server JavaScript syntax.
-- Main pushes that pass `check` publish multi-architecture `linux/amd64` and `linux/arm64` images tagged `latest` and with the short source commit SHA.
+- Main pushes that pass `check` publish multi-architecture `linux/amd64` and `linux/arm64` images tagged `latest` and with the short source commit SHA; images bake `SOURCE_COMMIT=${{ github.sha }}` for `/health` identity.
 - Tag pushes that pass `check` publish the literal release tag, refresh `latest`, and create a GitHub Release.
 - The filesystem Trivy scan is currently non-blocking (`exit-code: 0`) and should be recorded as such rather than described as a release gate.
 
@@ -372,8 +376,8 @@ This checklist is advisory evidence tracking. Items may be marked `N/A`, or an e
 
 #### Verify health and end-to-end behavior
 
-- [ ] Call the deployed `GET /health`; require `200` and inspect API/circuit-breaker status plus session/job/workflow counters.
-- [ ] Treat `/health` as service-health evidence, not release-version or digest proof; connect live state to the artifact using platform/deployment provenance.
+- [ ] Call the deployed `GET /health`; require `200` and inspect API/circuit-breaker status, `app.version`, `app.commit`, optional `app.imageDigest`, plus session/job/workflow counters.
+- [ ] Treat `/health` identity as app-reported evidence; still connect live state to the artifact using platform/deployment provenance and the resolved runtime image digest.
 - [ ] Load the public UI in a clean browser session and check console/network errors.
 - [ ] Using a dedicated Spooled organization, forge a sprite and verify workflow creation, frame processing, assembly, and rendered output.
 - [ ] Verify SSE event delivery and `POST /api/jobs/batch` reconciliation so a result can recover after missed realtime events.
@@ -401,6 +405,7 @@ curl http://localhost:3000/health
 ### Docker Health Check
 
 The container includes a built-in health check:
+
 - Interval: 30s
 - Timeout: 10s
 - Retries: 3
@@ -409,6 +414,7 @@ The container includes a built-in health check:
 ### Kubernetes Probes
 
 The deployment includes:
+
 - **Liveness probe**: `/health`
 - **Readiness probe**: `/health`
 
