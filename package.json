@@ -14,8 +14,6 @@
     "check:syntax": "node --check server/server.mjs && node --check server/spriteforge.mjs && node --check public/app.js"
   },
   "dependencies": {
-    "@spooled/sdk": "1.0.39",
-    "eventsource": "^4.1.0",
-    "ws": "^8.20.0"
+    "@spooled/sdk": "1.0.39"
   }
 }

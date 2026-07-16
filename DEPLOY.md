@@ -328,10 +328,10 @@ Release-facing documentation and image examples are additional review surfaces, 
 
 `@spooled/sdk` has different semantics from the SpriteForge application version:
 
-- `package.json` declares the compatible SDK semver range.
+- `package.json` declares the exact SDK version SpriteForge is tested against.
 - `package-lock.json` records the exact SDK package resolved and reproduced by `npm ci`.
 
-The range and lock resolution are intentional compatibility state. At the current documented state, `package.json` declares `@spooled/sdk` `1.0.39` and `package-lock.json` resolves the SDK to exactly `1.0.39`; `npm ci` reproduces that resolution. Do not pin below `1.0.39`, which carries the worker lease-fencing fixes SpriteForge depends on. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
+At the current documented state, `package.json` pins `@spooled/sdk` to `1.0.39` and `package-lock.json` resolves the SDK to exactly `1.0.39`; `npm ci` reproduces that resolution. Do not pin below `1.0.39`, which carries the worker lease-fencing fixes SpriteForge depends on. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
 
 ### CI and image publication model
 

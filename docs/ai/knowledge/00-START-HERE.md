@@ -20,4 +20,4 @@ Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/_
 
 Visual: slate dark + blue accent (forge CTA matches accent); Space Grotesk + JetBrains Mono; light pixel grid. Single brand mark in header — no duplicate Spooled wordmark logos.
 
-See `DEPLOY.md` for deploy. **Do not pin SDK below 1.0.39** while backend enforces lease_id fencing (see SF-02). Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes.
+See `DEPLOY.md` for deploy. **Do not pin SDK below 1.0.39** while backend enforces lease_id fencing (see SF-02). `package.json` pins the exact SDK version SpriteForge is tested against. Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.

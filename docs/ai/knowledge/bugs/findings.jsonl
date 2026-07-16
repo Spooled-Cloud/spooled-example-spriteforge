@@ -6,3 +6,5 @@
 {"id":"SF-06","sev":"P2","summary":"CI/deploy paths did not wire /health app commit/digest identity","status":"fixed","path":"Dockerfile .github/workflows/ci.yml docker-compose*.yml","note":"Working tree bakes SOURCE_COMMIT and exposes optional IMAGE_DIGEST"}
 {"id":"SF-07","sev":"P2","summary":"existing public schedule ignored cron/timezone/payload/queue config drift","status":"fixed","path":"server/server.mjs","note":"Working tree updates matching schedules and recreates when target queue changes"}
 {"id":"SF-08","sev":"P3","summary":"robots.txt advertised missing sitemap","status":"fixed","path":"public/sitemap.xml","note":"Working tree adds static sitemap"}
+{"id":"SF-09","sev":"P2","summary":"Docker build context could include local .env","status":"fixed","path":".dockerignore","note":"Working tree excludes .env/.env.* while keeping .env.example"}
+{"id":"SF-10","sev":"P3","summary":"unused direct deps, stale SDK pin wording, deprecated Kustomize commonLabels","status":"fixed","path":"package.json DEPLOY.md README.md k8s/base/kustomization.yaml","note":"Working tree removes unused deps, documents exact SDK pin, and migrates labels"}

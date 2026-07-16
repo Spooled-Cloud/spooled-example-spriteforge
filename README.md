@@ -369,7 +369,7 @@ curl http://localhost:3000/health
 
 ### SDK and Security Notes
 
-SpriteForge declares `@spooled/sdk` with a compatible semver range in `package.json`; the committed `package-lock.json` records the exact SDK version reproduced by `npm ci`. The declared range and locked resolution are intentionally separate compatibility state: review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
+SpriteForge pins `@spooled/sdk` to the exact SDK version it is tested against in `package.json`; the committed `package-lock.json` records the same exact SDK version reproduced by `npm ci`. Review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
 
 When deploying publicly:
 - Use a **dedicated Spooled organization** for the demo.

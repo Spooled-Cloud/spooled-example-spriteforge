@@ -11,6 +11,9 @@ labels:
     pairs:
       app.kubernetes.io/part-of: spooled-cloud
       app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/name: spooled-example-spriteforge
+      app.kubernetes.io/component: example
+      app.kubernetes.io/version: "1.0.15"
 
 resources:
   - namespace.yaml
@@ -22,7 +25,3 @@ resources:
   - hpa.yaml
   - pdb.yaml
 
-commonLabels:
-  app.kubernetes.io/name: spooled-example-spriteforge
-  app.kubernetes.io/component: example
-  app.kubernetes.io/version: "1.0.15"

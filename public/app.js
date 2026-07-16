@@ -83,7 +83,6 @@ const jobs = new Map();
 const framePixels = new Map();
 
 // Stats
-let currentStep = 0;
 let reconcileJobIds = [];
 let reconcileTimer = null;
 
@@ -153,7 +152,6 @@ function updateStats() {
 }
 
 function setStep(step) {
-  currentStep = step;
   els.steps.forEach((el, i) => {
     if (!el) return;
     el.classList.remove('active', 'completed');
@@ -970,8 +968,6 @@ function getPaletteEmoji(name) {
     forest: '🌲',
     retro: '🕹️',
     midnight: '🌙',
-    sunset: '🌅',
-    ocean: '🌊',
   };
   return emojis[name] || '🎨';
 }

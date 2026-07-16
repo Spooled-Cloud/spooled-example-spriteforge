@@ -10,3 +10,5 @@
 | SF-06 | P2  | CI/deploy paths did not wire `/health` app commit/digest identity                              | fixed working tree |
 | SF-07 | P2  | Existing public schedule ignored cron/timezone/payload/queue config drift                      | fixed working tree |
 | SF-08 | P3  | `robots.txt` advertised missing sitemap                                                        | fixed working tree |
+| SF-09 | P2  | Docker build context could include local `.env`                                                | fixed working tree |
+| SF-10 | P3  | Unused direct deps / stale SDK pin wording / deprecated Kustomize labels                       | fixed working tree |
