@@ -10,7 +10,8 @@
   },
   "scripts": {
     "dev": "node server/server.mjs",
-    "start": "node server/server.mjs"
+    "start": "node server/server.mjs",
+    "check:syntax": "node --check server/server.mjs && node --check server/spriteforge.mjs && node --check public/app.js"
   },
   "dependencies": {
     "@spooled/sdk": "1.0.39",

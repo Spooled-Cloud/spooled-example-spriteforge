@@ -67,7 +67,7 @@ chore: update dependencies
 
 ### Testing Your Changes
 
-1. **Syntax checks**: Run `node --check server/server.mjs server/spriteforge.mjs` (the same source check CI runs)
+1. **Syntax checks**: Run `npm run check:syntax` (the same source check CI runs)
 2. **Local testing**: Run `npm run dev` and test in a browser (`dev` and `start` currently run the same server; there is no file watcher)
 3. **Docker testing**: Run `docker compose up --build`
 4. **Chaos mode**: Set the chaos slider to 30%+ to exercise retry behavior

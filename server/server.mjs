@@ -2,7 +2,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 
 import { SpooledClient, SpooledRealtime, SpooledWorker } from '@spooled/sdk';
 
@@ -11,6 +11,11 @@ import { generateFrame, PALETTES, getPaletteByName } from './spriteforge.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const PACKAGE_JSON = JSON.parse(readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+const APP_VERSION = PACKAGE_JSON.version || '0.0.0-dev';
+const APP_COMMIT =
+  process.env.SOURCE_COMMIT || process.env.GIT_COMMIT || process.env.CF_PAGES_COMMIT_SHA || 'unknown';
+const APP_IMAGE_DIGEST = process.env.IMAGE_DIGEST || process.env.SOURCE_IMAGE_DIGEST || null;
 
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number(process.env.PORT || 3000);
@@ -1096,6 +1101,12 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, isHealthy ? 200 : 503, { 
         ok: isHealthy, 
         at: nowIso(),
+        app: {
+          name: PACKAGE_JSON.name || 'spooled-example-spriteforge',
+          version: APP_VERSION,
+          commit: APP_COMMIT,
+          imageDigest: APP_IMAGE_DIGEST,
+        },
         api: {
           status: stats.lastHealthCheckStatus,
           lastCheckAt: stats.lastHealthCheckAt,

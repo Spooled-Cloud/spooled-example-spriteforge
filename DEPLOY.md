@@ -327,7 +327,7 @@ Release-facing documentation and image examples are additional review surfaces, 
 - `package.json` declares the compatible SDK semver range.
 - `package-lock.json` records the exact SDK package resolved and reproduced by `npm ci`.
 
-The range and lock resolution are intentional compatibility state. At the current documented state, `package.json` declares `^1.0.26` and `package-lock.json` resolves `@spooled/sdk` to exactly `1.0.26`; `npm ci` reproduces that resolution. Review both, record the locked SDK version and relevant integration evidence, and decide whether an update is needed. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
+The range and lock resolution are intentional compatibility state. At the current documented state, `package.json` declares `@spooled/sdk` `1.0.39` and `package-lock.json` resolves the SDK to exactly `1.0.39`; `npm ci` reproduces that resolution. Do not pin below `1.0.39`, which carries the worker lease-fencing fixes SpriteForge depends on. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
 
 ### CI and image publication model
 
@@ -351,7 +351,7 @@ This checklist is advisory evidence tracking. Items may be marked `N/A`, or an e
 - [ ] Search README, deployment guidance, image examples, and release links for stale concrete application versions.
 - [ ] Record the declared `@spooled/sdk` range and exact lock resolution; review SDK release notes and compatibility relevant to workers, workflows, schedules, REST, and realtime usage.
 - [ ] Do not require the SDK and application versions to match numerically; record why the locked SDK is retained or changed.
-- [ ] Run `npm ci` and `node --check server/server.mjs server/spriteforge.mjs`.
+- [ ] Run `npm ci` and `npm run check:syntax`.
 - [ ] Build the Docker image and verify its health check locally when Docker is available.
 - [ ] Confirm no secret-bearing `.env` file or generated local artifact is staged.
 

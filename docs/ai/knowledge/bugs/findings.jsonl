@@ -1,2 +1,5 @@
 {"id":"SF-01","sev":"P3","summary":"SDK pin 1.0.26 vs tip","status":"closed","resolution":"bumped to 1.0.39 with SF-02"}
 {"id":"SF-02","sev":"P0","summary":"SDK 1.0.26 completeJob omits leaseId; backend 0.1.107 returns 409 LEASE_EXPIRED; workers claim but never ack","status":"fixed","path":"node_modules/@spooled/sdk worker completeJob (fixed >=1.0.39)","fix":"pin @spooled/sdk 1.0.39","verified":"2026-07-15"}
+{"id":"SF-03","sev":"P1","summary":"package-lock app version lagged package.json","status":"fixed","path":"package-lock.json","note":"Working tree syncs root version to 1.0.15"}
+{"id":"SF-04","sev":"P3","summary":"HTML/manifest referenced missing generated OG/PWA assets","status":"fixed","path":"public/index.html","note":"Working tree points metadata/manifest to existing SVG assets"}
+{"id":"SF-05","sev":"P3","summary":"/health lacked app version/commit identity","status":"fixed","path":"server/server.mjs","note":"Working tree returns app identity fields"}
