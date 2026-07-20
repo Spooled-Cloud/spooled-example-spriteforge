@@ -21,7 +21,10 @@
       property="og:description"
       content="Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action."
     />
-    <meta property="og:image" content="https://example.spooled.cloud/spooled-logo.svg" />
+    <meta property="og:image" content="https://example.spooled.cloud/og.webp" />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="SpriteForge" />
 
     <meta property="twitter:card" content="summary_large_image" />
@@ -31,12 +34,17 @@
       property="twitter:description"
       content="Generate animated pixel characters in real-time. Watch jobs, workflows, retries, and workers in action."
     />
-    <meta property="twitter:image" content="https://example.spooled.cloud/spooled-logo.svg" />
+    <meta property="twitter:image" content="https://example.spooled.cloud/og.webp" />
 
-    <meta name="theme-color" content="#12141a" />
+    <meta name="theme-color" content="#12141a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)" />
     <meta name="msapplication-TileColor" content="#12141a" />
+    <meta name="color-scheme" content="dark light" />
 
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -44,7 +52,15 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
 
     <link rel="stylesheet" href="/styles.css" />
     <link rel="canonical" href="https://example.spooled.cloud/" />
@@ -52,6 +68,8 @@
   <body>
     <div class="bg-pixel" aria-hidden="true"></div>
     <div class="bg-wash" aria-hidden="true"></div>
+
+    <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="header">
       <a class="brand" href="/" aria-label="SpriteForge home">
@@ -88,12 +106,16 @@
       </div>
     </header>
 
-    <main class="main">
-      <p class="lede">
-        Forge a pixel sprite. Spooled runs the <strong>workflow</strong> — parallel frame jobs, workers, retries, live events.
-      </p>
+    <main class="main" id="main">
+      <header class="intro">
+        <h1 class="page-title">SpriteForge</h1>
+        <p class="lede">
+          Forge a pixel sprite. Spooled runs the <strong>workflow</strong> — parallel frame jobs, workers,
+          retries, and live events you can watch as they happen.
+        </p>
+      </header>
 
-      <section class="hero" aria-label="Forge a sprite">
+      <section class="hero" aria-labelledby="forge-heading">
         <div class="stage">
           <div class="stage-head">
             <span class="stage-label">Live stage</span>
@@ -118,7 +140,7 @@
 
         <form class="forge-panel" id="forge-form" onsubmit="return false;">
           <div class="forge-head">
-            <h2 class="forge-title">Forge controls</h2>
+            <h2 class="forge-title" id="forge-heading">Forge controls</h2>
             <p class="forge-pitch">Frames run in parallel. Chaos shows retries.</p>
           </div>
 
@@ -176,7 +198,8 @@
         </ol>
       </nav>
 
-      <section class="panel" aria-label="Live pipeline details">
+      <section class="panel" aria-labelledby="live-heading">
+        <h2 class="visually-hidden" id="live-heading">Live pipeline details</h2>
         <div class="tabs" role="tablist" aria-label="Live views">
           <button type="button" class="tab active" role="tab" id="tab-jobs" aria-selected="true" aria-controls="panel-jobs" data-tab="jobs">
             Jobs <span class="job-counter" id="job-counter">0/0</span>
@@ -221,37 +244,291 @@
             <canvas id="public" width="280" height="140" aria-label="Sprite of the minute"></canvas>
             <p class="minute-note">
               <strong>Sprite of the Minute</strong> — Spooled cron
-              <code>0 * * * * *</code> fires every minute.
+              <code>0 * * * * *</code> fires every minute (UTC).
             </p>
           </div>
         </div>
       </section>
 
-      <details class="glossary">
-        <summary>How Spooled shows up here</summary>
-        <dl class="glossary-list">
-          <div>
-            <dt>Workflow</dt>
-            <dd>DAG: N frame jobs in parallel, then one assemble job.</dd>
-          </div>
-          <div>
-            <dt>Workers</dt>
-            <dd>Frame, assemble, and public-sprite workers pull Spooled queues.</dd>
-          </div>
-          <div>
-            <dt>Realtime</dt>
-            <dd>Spooled WebSocket → this server → browser SSE (+ reconcile).</dd>
-          </div>
-          <div>
-            <dt>Retries</dt>
-            <dd>Chaos slider injects failures; Spooled retries automatically.</dd>
-          </div>
-          <div>
-            <dt>Schedules</dt>
-            <dd>Minute tab — cron public sprite, no click needed.</dd>
-          </div>
-        </dl>
-      </details>
+      <!-- Educational content: restored below the interactive forge (adapted from pre-c72a4f1 copy) -->
+      <section class="learn" aria-labelledby="learn-heading">
+        <div class="section-head">
+          <p class="section-kicker">Concepts</p>
+          <h2 id="learn-heading">Understanding Spooled</h2>
+          <p class="section-lead">
+            Not technical? Think of a coffee shop. Each idea below is an everyday analogy, then how it
+            shows up when you hit <strong>Forge Sprite</strong>.
+          </p>
+        </div>
+
+        <div class="concept-grid">
+          <article class="concept">
+            <h3>What is a Job?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              A job is your order slip: “latte, oat milk.” It waits until a barista picks it up.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              Forging creates jobs such as “generate frame 3” and one later “assemble” job. Each is a unit of work with a JSON payload.
+            </p>
+            <pre class="code-sample" tabindex="0"><code>{
+  "queue": "spriteforge-frames",
+  "payload": {
+    "kind": "frame",
+    "frameIndex": 3,
+    "seed": "pixel-hero",
+    "paletteName": "neon"
+  }
+}</code></pre>
+          </article>
+
+          <article class="concept">
+            <h3>What is a Queue?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              The queue is the line of slips above the machine. Work is claimed in order by available workers.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              Three queues: <code>spriteforge-frames</code>, <code>spriteforge-assemble</code>, and
+              <code>spriteforge-public</code> (scheduled sprites). Separate queues keep fast parallel work off heavier assembly.
+            </p>
+          </article>
+
+          <article class="concept">
+            <h3>What is a Worker?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              Workers are the baristas. They pull an order, do the work, and mark it done. More workers usually means more throughput.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              Defaults: <strong>8</strong> frame workers, <strong>2</strong> assemble workers, and
+              <strong>1</strong> public-sprite worker (overridable via env). They claim jobs with leases and heartbeats.
+            </p>
+          </article>
+
+          <article class="concept">
+            <h3>What is a Workflow?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              A combo order: brew the coffee <em>and</em> warm the muffin in parallel, then box them only when both are ready.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              N frame jobs run in parallel; the assemble job <code>dependsOn</code> every frame. When all frames complete, assemble runs once.
+            </p>
+            <div class="mini-flow" aria-hidden="true">
+              <span class="mf-job">frames…</span>
+              <span class="mf-arrow">→ all done →</span>
+              <span class="mf-job mf-final">assemble</span>
+            </div>
+          </article>
+
+          <article class="concept">
+            <h3>What are Retries?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              Dropped a drink? Make it again. The order is not thrown away — it goes back so someone can finish it.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              The Chaos slider injects random failures on frame jobs. Spooled retries automatically (this forge sets
+              <code>maxRetries: 5</code> on workflow jobs). Turn Chaos up and watch red → retry → green.
+            </p>
+          </article>
+
+          <article class="concept">
+            <h3>What are Real-time Events?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              The board that says “Order #42 ready!” — the shop tells you; you do not keep asking.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              Spooled streams job events over WebSocket to this server, which forwards them to your browser over SSE.
+              A light reconcile poll fills gaps if an event is missed — so the UI stays honest under imperfect networks.
+            </p>
+          </article>
+
+          <article class="concept">
+            <h3>What are Schedules?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              Coffee brewed at 6 AM every day without a customer asking — work on a timetable.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              <strong>Sprite of the Minute</strong> uses cron <code>0 * * * * *</code> (every minute, UTC) on the
+              <code>spriteforge-public</code> queue. Open the Minute tab to see it update.
+            </p>
+          </article>
+
+          <article class="concept">
+            <h3>How is this secured?</h3>
+            <p class="analogy">
+              <span class="analogy-label">Coffee shop</span>
+              Staff hold the back-room keys. Customers never need them to place an order.
+            </p>
+            <p class="here">
+              <span class="here-label">In this demo</span>
+              Your browser talks only to the SpriteForge server. The Spooled API key stays on the server and is never
+              sent to the client. Job payloads are ordinary JSON stored by Spooled — this demo does not claim field-level
+              encryption or compliance certifications.
+            </p>
+            <div class="security-flow" aria-hidden="true">
+              <span class="sf-box">Browser</span>
+              <span class="sf-arrow">→</span>
+              <span class="sf-box sf-server">This server<br /><small>holds API key</small></span>
+              <span class="sf-arrow">→</span>
+              <span class="sf-box">Spooled Cloud</span>
+            </div>
+          </article>
+        </div>
+
+        <div class="try-block">
+          <h2 id="try-heading">Try it yourself</h2>
+          <ol class="try-steps">
+            <li>
+              <strong>Forge Sprite</strong>
+              <span>Jobs appear in the Jobs tab; the pipeline steps light up.</span>
+            </li>
+            <li>
+              <strong>Watch status colors</strong>
+              <span>Pending → running → done, or fail → retry.</span>
+            </li>
+            <li>
+              <strong>Raise Chaos to 30%+</strong>
+              <span>See automatic retries without rewriting the workflow.</span>
+            </li>
+            <li>
+              <strong>Open Events</strong>
+              <span>State changes stream in as they happen (with reconcile as backup).</span>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="compare" aria-labelledby="compare-heading">
+        <div class="section-head">
+          <p class="section-kicker">Context</p>
+          <h2 id="compare-heading">How would you build this elsewhere?</h2>
+          <p class="section-lead">
+            Same demo needs jobs, a DAG, workers, retries, a schedule, and live visibility. Honest sketches of common
+            stacks — and where each is genuinely stronger. Full matrices live on
+            <a href="https://spooled.cloud/compare/bullmq" target="_blank" rel="noopener">spooled.cloud/compare</a>.
+          </p>
+        </div>
+
+        <div class="compare-grid">
+          <article class="compare-card">
+            <h3>AWS SQS + Step Functions</h3>
+            <ul>
+              <li>SQS (or similar) for messages; Step Functions for the DAG</li>
+              <li>Lambda (or ECS) workers; EventBridge for cron</li>
+              <li>API Gateway WebSocket or AppSync if you need browser live updates</li>
+            </ul>
+            <p class="verdict">
+              <strong>Trade-offs:</strong> Excellent if you are already deep in AWS. You wire several managed services
+              yourself; Step Functions charges per state transition; browser streaming is not built-in. Great fit for
+              Lambda-native shops.
+            </p>
+          </article>
+
+          <article class="compare-card">
+            <h3>Redis + BullMQ</h3>
+            <ul>
+              <li>BullMQ queues and Node workers; optional Bull Board</li>
+              <li>Workflow deps and multi-language workers are mostly your code</li>
+              <li>Repeatable jobs / node-cron; Pub/Sub + your own SSE for the browser</li>
+            </ul>
+            <p class="verdict">
+              <strong>Trade-offs:</strong> Outstanding Node DX and low latency. You operate Redis and own durability,
+              multi-tenant platform surface, and polyglot APIs. Prefer BullMQ when the app is one Node codebase and you
+              want a library, not a hosted queue product.
+              <a href="https://spooled.cloud/compare/bullmq" target="_blank" rel="noopener">Compare →</a>
+            </p>
+          </article>
+
+          <article class="compare-card">
+            <h3>Temporal</h3>
+            <ul>
+              <li>Workflows + activities for frames and assemble</li>
+              <li>First-class retries, timeouts, and durable execution history</li>
+              <li>Schedules API; browser streaming still a separate layer</li>
+            </ul>
+            <p class="verdict">
+              <strong>Trade-offs:</strong> Best-in-class for complex, long-running business processes and saga-style
+              logic. Heavier programming model and ops than a simple job queue. Prefer Temporal when durable execution
+              is the product; prefer a job queue when most work is “enqueue → claim → complete.”
+              <a href="https://spooled.cloud/compare/temporal" target="_blank" rel="noopener">Compare →</a>
+            </p>
+          </article>
+
+          <article class="compare-card">
+            <h3>Inngest</h3>
+            <ul>
+              <li>Event-driven functions with <code>step.run</code> for parallel work</li>
+              <li>Built-in retries and cron; serverless-first hosting model</li>
+              <li>Live browser feed usually custom (poll or your own socket)</li>
+            </ul>
+            <p class="verdict">
+              <strong>Trade-offs:</strong> Excellent DX for Next.js / serverless teams. Different mental model than
+              pull-based workers with leases. Prefer Inngest when functions-as-steps are natural; prefer worker-first
+              queues when long-running processes pull jobs continuously.
+              <a href="https://spooled.cloud/compare/inngest" target="_blank" rel="noopener">Compare →</a>
+            </p>
+          </article>
+        </div>
+
+        <div class="why-block">
+          <h2 id="why-heading">Why we built Spooled</h2>
+          <p>
+            A job queue that is simple to start with, still useful at scale: durable jobs, workflows without a heavy DSL,
+            schedules, and real-time visibility — cloud or self-host, REST + gRPC, polyglot workers.
+          </p>
+          <ul class="why-list">
+            <li>
+              <strong>PostgreSQL as source of truth</strong>
+              Jobs live in a real database with normal transactional semantics you can query.
+            </li>
+            <li>
+              <strong>Real-time as a product surface</strong>
+              Stream job lifecycle events without bolting on a second pub/sub stack for basic dashboards.
+            </li>
+            <li>
+              <strong>Worker-first, language-agnostic</strong>
+              Pull jobs over REST or gRPC from any runtime — not locked to one language library.
+            </li>
+            <li>
+              <strong>Workflows as dependencies</strong>
+              Express “assemble after all frames” with job keys and <code>dependsOn</code>, not a new language.
+            </li>
+            <li>
+              <strong>Cloud or self-host</strong>
+              Same API either way when you need the data path on your own network.
+            </li>
+          </ul>
+          <p class="honest-note">
+            <strong>Being honest:</strong> Spooled is not always the right tool. Sub-millisecond in-process work is
+            happier in Redis/memory. Deep AWS shops may prefer Step Functions + Lambda integration. Complex multi-week
+            sagas are Temporal’s home turf. Serverless-only teams often prefer Inngest’s function model. If you want a
+            queryable job queue with workers, schedules, and live status you can demo in an afternoon — try Spooled.
+          </p>
+          <p class="why-cta">
+            <a class="btn btn-secondary" href="https://spooled.cloud" target="_blank" rel="noopener">spooled.cloud</a>
+            <a class="btn btn-secondary" href="https://spooled.cloud/docs" target="_blank" rel="noopener">Docs</a>
+            <a
+              class="btn btn-secondary"
+              href="https://github.com/spooled-cloud/spooled-example-spriteforge"
+              target="_blank"
+              rel="noopener"
+              >This demo on GitHub</a
+            >
+          </p>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
@@ -260,6 +537,8 @@
         <a href="https://github.com/spooled-cloud/spooled-example-spriteforge" target="_blank" rel="noopener">GitHub</a>
         <span class="sep" aria-hidden="true">·</span>
         <a href="https://spooled.cloud/docs" target="_blank" rel="noopener">Docs</a>
+        <span class="sep" aria-hidden="true">·</span>
+        <a href="https://spooled.cloud/compare/bullmq" target="_blank" rel="noopener">Compare</a>
       </div>
     </footer>
 

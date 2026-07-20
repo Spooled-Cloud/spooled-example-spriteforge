@@ -6,18 +6,26 @@ Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, wo
 
 ## Frontend (`public/`)
 
-Compact craft UI (2026-07-15 redesign + brand/color pass):
+Compact craft UI (2026-07-15 redesign + brand/color pass) **with educational explainers restored below the forge** (2026-07-20):
 
-| Surface  | Role                                                                                      |
-| -------- | ----------------------------------------------------------------------------------------- |
-| Header   | One Spooled mark + SpriteForge title + text “Powered by Spooled” + conn pill + mini stats |
-| Hero     | Live canvas stage + forge form (sticky Forge on viewports under 720px)                    |
-| Pipeline | 5 live steps (`#step-1`…`#step-5`) bound by `app.js`                                      |
-| Tabs     | Jobs (workflow diagram + list) · Events (`#log`) · Minute (`#public`)                     |
-| Glossary | `<details>` progressive disclosure — not a card wall                                      |
+| Surface   | Role                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| Header    | One Spooled mark + SpriteForge title + text “Powered by Spooled” + conn pill + mini stats                 |
+| Intro     | Exactly one `<h1>` (page title) + lede                                                                    |
+| Hero      | Live canvas stage + forge form (sticky Forge on viewports under 720px)                                    |
+| Pipeline  | 5 live steps (`#step-1`…`#step-5`) bound by `app.js`                                                      |
+| Tabs      | Jobs (workflow diagram + list) · Events (`#log`) · Minute (`#public`)                                     |
+| Learn     | Coffee-shop concept cards (job/queue/worker/workflow/retry/events/schedule/security) + try-it steps     |
+| Compare   | Fair alternatives (AWS / BullMQ / Temporal / Inngest) + why Spooled + honest “not always” note            |
 
-Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/_, jobs, wf-_, log, event-indicator, public, steps, conn-pill, stats). Reconcile polling also advances pipeline step/status when SSE is partial.
+Heading outline: `h1` page title → `h2` forge / live (visually hidden) / learn / try / compare / why → `h3` concepts and competitors. Do not reintroduce a heading-less public page.
 
-Visual: slate dark + blue accent (forge CTA matches accent); Space Grotesk + JetBrains Mono; light pixel grid. Single brand mark in header — no duplicate Spooled wordmark logos.
+Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*, jobs, wf-*, log, event-indicator, public, steps, conn-pill, stats, sticky-forge). Also preserve `.tab[data-tab]` and `.pill-text`. Reconcile polling advances pipeline step/status when SSE is partial — copy must not claim “zero polling.”
+
+Icons: true vector `favicon.svg` (~2 KB, from mark), PNG/ICO fallbacks, 192/512 manifest icons. OG/Twitter images use raster `og.webp` (1200×630) — scrapers do not render SVG. Never reintroduce a JPEG-in-SVG favicon.
+
+Visual: slate dark + blue accent (forge CTA matches accent); Space Grotesk + JetBrains Mono (async font load); light pixel grid; `prefers-color-scheme: light` variables; `prefers-reduced-motion` respected. Single brand mark in header — no duplicate Spooled wordmark logos. Content max-width expands to ~1120–1200 px on large screens.
+
+Demo defaults (from `server/server.mjs` / `docker-compose.prod.yml`): queues `spriteforge-frames|assemble|public`; concurrency 8 / 2 / 1; public cron `0 * * * * *` UTC; forge workflow `maxRetries: 5`.
 
 See `DEPLOY.md` for deploy. **Do not pin SDK below 1.0.39** while backend enforces lease_id fencing (see SF-02). `package.json` pins the exact SDK version SpriteForge is tested against. Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.

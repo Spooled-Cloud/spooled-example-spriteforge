@@ -12,3 +12,5 @@
 | SF-08 | P3  | `robots.txt` advertised missing sitemap                                                        | fixed working tree |
 | SF-09 | P2  | Docker build context could include local `.env`                                                | fixed working tree |
 | SF-10 | P3  | Unused direct deps / stale SDK pin wording / deprecated Kustomize labels                       | fixed working tree |
+| SF-11 | P2  | `favicon.svg` was a 949 KB JPEG-in-SVG; only icon + only manifest icon                          | fixed              |
+| SF-12 | P2  | Public page had no `<h1>` (only control-panel `<h2>`); SEO/a11y regression                     | fixed              |
