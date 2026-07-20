@@ -108,11 +108,19 @@
 
     <main class="main" id="main">
       <header class="intro">
-        <h1 class="page-title">SpriteForge</h1>
+        <p class="intro-kicker">Interactive Spooled demo</p>
+        <h1 class="page-title">Watch a job queue forge a sprite</h1>
         <p class="lede">
-          Forge a pixel sprite. Spooled runs the <strong>workflow</strong> — parallel frame jobs, workers,
-          retries, and live events you can watch as they happen.
+          Hit <strong>Forge Sprite</strong> and Spooled runs a real <strong>workflow</strong> — parallel frame jobs,
+          workers with leases, automatic retries, and live events — not a mocked animation.
         </p>
+        <ul class="intro-chips" aria-label="What you will see">
+          <li>Workflow DAG</li>
+          <li>Parallel workers</li>
+          <li>Chaos retries</li>
+          <li>Live SSE events</li>
+          <li>Minute cron</li>
+        </ul>
       </header>
 
       <section class="hero" aria-labelledby="forge-heading">
@@ -121,18 +129,20 @@
             <span class="stage-label">Live stage</span>
             <span class="preview-status" id="preview-status">Ready</span>
           </div>
-          <div class="preview-container">
-            <div class="stage-grid" aria-hidden="true"></div>
-            <canvas id="preview" width="320" height="320" aria-label="Sprite preview"></canvas>
-            <div class="preview-overlay" id="preview-overlay">
-              <div class="placeholder">
-                <img class="placeholder-mark" src="/spooled-mark.svg" width="48" height="48" alt="" />
-                <p class="placeholder-title">Hit Forge Sprite</p>
-                <p class="placeholder-text">Watch Spooled queue → workers → assemble</p>
+          <div class="stage-frame">
+            <div class="preview-container">
+              <div class="stage-grid" aria-hidden="true"></div>
+              <canvas id="preview" width="320" height="320" aria-label="Sprite preview"></canvas>
+              <div class="preview-overlay" id="preview-overlay">
+                <div class="placeholder">
+                  <img class="placeholder-mark" src="/spooled-mark.svg" width="48" height="48" alt="" />
+                  <p class="placeholder-title">Hit Forge Sprite</p>
+                  <p class="placeholder-text">Watch Spooled queue → workers → assemble</p>
+                </div>
               </div>
-            </div>
-            <div class="preview-progress hidden" id="preview-progress">
-              <div class="progress-text" id="progress-text">0/8 frames</div>
+              <div class="preview-progress hidden" id="preview-progress">
+                <div class="progress-text" id="progress-text">0/8 frames</div>
+              </div>
             </div>
           </div>
           <p class="preview-meta" id="preview-meta"></p>
@@ -199,7 +209,10 @@
       </nav>
 
       <section class="panel" aria-labelledby="live-heading">
-        <h2 class="visually-hidden" id="live-heading">Live pipeline details</h2>
+        <div class="panel-head">
+          <h2 id="live-heading">Live pipeline</h2>
+          <p class="panel-sub">Jobs · events · scheduled sprite</p>
+        </div>
         <div class="tabs" role="tablist" aria-label="Live views">
           <button type="button" class="tab active" role="tab" id="tab-jobs" aria-selected="true" aria-controls="panel-jobs" data-tab="jobs">
             Jobs <span class="job-counter" id="job-counter">0/0</span>
@@ -250,6 +263,8 @@
         </div>
       </section>
 
+      <div class="section-rule" aria-hidden="true"></div>
+
       <!-- Educational content: restored below the interactive forge (adapted from pre-c72a4f1 copy) -->
       <section class="learn" aria-labelledby="learn-heading">
         <div class="section-head">
@@ -263,6 +278,7 @@
 
         <div class="concept-grid">
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">01</span>
             <h3>What is a Job?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -284,6 +300,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">02</span>
             <h3>What is a Queue?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -297,6 +314,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">03</span>
             <h3>What is a Worker?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -310,6 +328,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">04</span>
             <h3>What is a Workflow?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -327,6 +346,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">05</span>
             <h3>What are Retries?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -340,6 +360,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">06</span>
             <h3>What are Real-time Events?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -353,6 +374,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">07</span>
             <h3>What are Schedules?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>
@@ -366,6 +388,7 @@
           </article>
 
           <article class="concept">
+            <span class="concept-index" aria-hidden="true">08</span>
             <h3>How is this secured?</h3>
             <p class="analogy">
               <span class="analogy-label">Coffee shop</span>

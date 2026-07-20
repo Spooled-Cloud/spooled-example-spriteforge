@@ -24,7 +24,7 @@ Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*
 
 Icons: true vector `favicon.svg` (~2 KB, from mark), PNG/ICO fallbacks, 192/512 manifest icons. OG/Twitter images use raster `og.webp` (1200×630) — scrapers do not render SVG. Never reintroduce a JPEG-in-SVG favicon.
 
-Visual: slate dark + blue accent (forge CTA matches accent); Space Grotesk + JetBrains Mono (async font load); light pixel grid; `prefers-color-scheme: light` variables; `prefers-reduced-motion` respected. Single brand mark in header — no duplicate Spooled wordmark logos. Content max-width expands to ~1120–1200 px on large screens.
+Visual: dark-first craft “pixel forge” (emerald brand + blue accent + amber active pipeline); Space Grotesk + JetBrains Mono (async font load); sticky header; stage frame with corner ticks; forge panel top gradient rail; intro chips; numbered concept cards; light scheme via `prefers-color-scheme`; `prefers-reduced-motion` respected. Single brand mark in header. Content max-width ~1180–1240 px on large screens.
 
 Demo defaults (from `server/server.mjs` / `docker-compose.prod.yml`): queues `spriteforge-frames|assemble|public`; concurrency 8 / 2 / 1; public cron `0 * * * * *` UTC; forge workflow `maxRetries: 5`.
 
