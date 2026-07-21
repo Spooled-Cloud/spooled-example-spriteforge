@@ -2,7 +2,7 @@
 
 Demo app **v1.0.15** using `@spooled/sdk` **1.0.39** (lease fencing on complete/fail/heartbeat). Live: `example.spooled.cloud`.
 
-Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, workflows, schedules, realtime bridge. `/health` returns app version/commit/digest identity; CI bakes `SOURCE_COMMIT`, and deploy env may pass `IMAGE_DIGEST`.
+Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, workflows, schedules, realtime bridge. `/health` returns app version/commit/digest identity; CI bakes `SOURCE_COMMIT` into the image. **Prod compose must not default `SOURCE_COMMIT=unknown`** (clobbers bake — SF-13). Health check runs once at boot, then every 5m.
 
 ## Frontend (`public/`)
 

@@ -22,6 +22,8 @@
 #   SPRITEFORGE_IMAGE       - Docker image (default: ghcr.io/spooled-cloud/spooled-example-spriteforge:latest)
 #   SPOOLED_BASE_URL        - Backend API URL
 #   SPOOLED_WS_URL          - WebSocket URL
+#   SOURCE_COMMIT / IMAGE_DIGEST - optional /health identity overrides only;
+#     leave unset so CI-baked image SOURCE_COMMIT is visible
 #
 # Cloudflare Tunnel Routes (configure in Zero Trust dashboard):
 #   - example.spooled.cloud -> http://spriteforge:3000
@@ -39,8 +41,11 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       NODE_ENV: production
-      SOURCE_COMMIT: ${SOURCE_COMMIT:-unknown}
-      IMAGE_DIGEST: ${IMAGE_DIGEST:-}
+      # Do NOT set SOURCE_COMMIT here with a default of "unknown".
+      # CI bakes SOURCE_COMMIT into the image ENV; composing a default
+      # clobbers that bake and /health reports app.commit=unknown.
+      # Optional identity overrides (set in Portainer only when needed):
+      #   SOURCE_COMMIT, IMAGE_DIGEST
 
       # Spooled Configuration (Required)
       SPOOLED_API_KEY: ${SPOOLED_API_KEY}

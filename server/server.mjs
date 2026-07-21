@@ -15,13 +15,23 @@ const PACKAGE_JSON = JSON.parse(
   readFileSync(path.join(__dirname, "..", "package.json"), "utf8"),
 );
 const APP_VERSION = PACKAGE_JSON.version || "0.0.0-dev";
+
+/** Treat empty / placeholder identity env as unset (compose defaults used to clobber image bake). */
+function envIdentity(name) {
+  const v = process.env[name];
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s || s === "unknown" || s === "null" || s === "undefined") return null;
+  return s;
+}
+
 const APP_COMMIT =
-  process.env.SOURCE_COMMIT ||
-  process.env.GIT_COMMIT ||
-  process.env.CF_PAGES_COMMIT_SHA ||
+  envIdentity("SOURCE_COMMIT") ||
+  envIdentity("GIT_COMMIT") ||
+  envIdentity("CF_PAGES_COMMIT_SHA") ||
   "unknown";
 const APP_IMAGE_DIGEST =
-  process.env.IMAGE_DIGEST || process.env.SOURCE_IMAGE_DIGEST || null;
+  envIdentity("IMAGE_DIGEST") || envIdentity("SOURCE_IMAGE_DIGEST") || null;
 
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
@@ -112,60 +122,66 @@ const stats = {
  * Periodic health check that verifies API connectivity.
  * If the API becomes unreachable, this can trigger alerts or auto-recovery.
  */
-function startHealthCheck() {
-  setInterval(async () => {
+async function runHealthCheckOnce() {
+  try {
+    // Try to list queues as a lightweight health check
+    await client.queues.list();
+
+    stats.lastHealthCheckAt = nowIso();
+    stats.lastHealthCheckStatus = "healthy";
+    stats.healthCheckFailures = 0;
+
+    // Also check circuit breaker state
     try {
-      // Try to list queues as a lightweight health check
-      await client.queues.list();
+      const cbStats = client.getCircuitBreakerStats();
+      stats.circuitBreakerState = cbStats.state;
 
-      stats.lastHealthCheckAt = nowIso();
-      stats.lastHealthCheckStatus = "healthy";
-      stats.healthCheckFailures = 0;
-
-      // Also check circuit breaker state
-      try {
-        const cbStats = client.getCircuitBreakerStats();
-        stats.circuitBreakerState = cbStats.state;
-
-        // Log if circuit breaker is not in normal state
-        if (cbStats.state !== "CLOSED") {
-          // eslint-disable-next-line no-console
-          console.warn(
-            `[health] Circuit breaker state: ${cbStats.state}, failures: ${cbStats.failureCount}`,
-          );
-        }
-      } catch {
-        // SDK might not expose this, ignore
-      }
-    } catch (err) {
-      stats.healthCheckFailures++;
-      stats.lastHealthCheckAt = nowIso();
-      stats.lastHealthCheckStatus = `failed: ${err?.message || err}`;
-
-      // eslint-disable-next-line no-console
-      console.error(
-        `[health] API health check failed (${stats.healthCheckFailures}/${MAX_HEALTH_CHECK_FAILURES}):`,
-        err?.message || err,
-      );
-
-      // If we've failed too many times, try to reset the circuit breaker
-      if (stats.healthCheckFailures >= MAX_HEALTH_CHECK_FAILURES) {
+      // Log if circuit breaker is not in normal state
+      if (cbStats.state !== "CLOSED") {
         // eslint-disable-next-line no-console
         console.warn(
-          "[health] Too many consecutive failures, attempting circuit breaker reset...",
+          `[health] Circuit breaker state: ${cbStats.state}, failures: ${cbStats.failureCount}`,
         );
-        try {
-          client.resetCircuitBreaker();
-          // eslint-disable-next-line no-console
-          console.log("[health] Circuit breaker reset");
-        } catch {
-          // ignore
-        }
-
-        // Also restart realtime connection
-        scheduleRealtimeRestart();
       }
+    } catch {
+      // SDK might not expose this, ignore
     }
+  } catch (err) {
+    stats.healthCheckFailures++;
+    stats.lastHealthCheckAt = nowIso();
+    stats.lastHealthCheckStatus = `failed: ${err?.message || err}`;
+
+    // eslint-disable-next-line no-console
+    console.error(
+      `[health] API health check failed (${stats.healthCheckFailures}/${MAX_HEALTH_CHECK_FAILURES}):`,
+      err?.message || err,
+    );
+
+    // If we've failed too many times, try to reset the circuit breaker
+    if (stats.healthCheckFailures >= MAX_HEALTH_CHECK_FAILURES) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[health] Too many consecutive failures, attempting circuit breaker reset...",
+      );
+      try {
+        client.resetCircuitBreaker();
+        // eslint-disable-next-line no-console
+        console.log("[health] Circuit breaker reset");
+      } catch {
+        // ignore
+      }
+
+      // Also restart realtime connection
+      scheduleRealtimeRestart();
+    }
+  }
+}
+
+function startHealthCheck() {
+  // Fire immediately so /health is not "unknown" for the first interval after boot
+  runHealthCheckOnce().catch(() => {});
+  setInterval(() => {
+    runHealthCheckOnce().catch(() => {});
   }, HEALTH_CHECK_INTERVAL_MS);
 
   // eslint-disable-next-line no-console

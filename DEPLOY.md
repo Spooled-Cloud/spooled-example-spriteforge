@@ -305,8 +305,8 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 | ------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `CLOUDFLARE_TUNNEL_TOKEN` | none                                                       | Required by `docker-compose.prod.yml` for the bundled tunnel                                               |
 | `SPRITEFORGE_IMAGE`       | `ghcr.io/spooled-cloud/spooled-example-spriteforge:latest` | Image override for production Compose                                                                      |
-| `SOURCE_COMMIT`           | `unknown`                                                  | Source commit exposed by `/health` as `app.commit`; CI-baked images set this from `github.sha`             |
-| `IMAGE_DIGEST`            | empty                                                      | Optional immutable image digest exposed by `/health` as `app.imageDigest` after deploy tooling resolves it |
+| `SOURCE_COMMIT`           | *(image bake)*                                             | Optional override for `/health` `app.commit`. **Omit in Portainer** so the CI-baked image `ENV SOURCE_COMMIT` wins. Do not default compose to `unknown` — that clobbers the bake. |
+| `IMAGE_DIGEST`            | empty                                                      | Optional immutable digest for `/health` `app.imageDigest` after deploy tooling resolves it. Omit unless set intentionally. |
 
 > **Retention note:** SpriteForge sets `expiresAt` on interactive workflow jobs. The Spooled backend checks cleanup every five minutes; pending, scheduled, failed, and dead-letter jobs can be removed after explicit expiration, while completed/cancelled jobs and completed/failed/cancelled workflows follow organization retention limits.
 
