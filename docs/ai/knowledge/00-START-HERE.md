@@ -24,7 +24,7 @@ Stable DOM ids consumed by `app.js` must stay in sync (forge controls, preview/*
 
 Icons: true vector `favicon.svg` (~2 KB, from mark), PNG/ICO fallbacks, 192/512 manifest icons. OG/Twitter images use raster `og.webp` (1200×630) — scrapers do not render SVG. Never reintroduce a JPEG-in-SVG favicon.
 
-Visual: dark-first craft “pixel forge” (emerald brand + blue accent + amber active pipeline); Space Grotesk + JetBrains Mono (async font load); sticky header; stage frame with corner ticks; forge panel top gradient rail; intro chips; numbered concept cards; light scheme via `prefers-color-scheme`; `prefers-reduced-motion` respected. Single brand mark in header. Content max-width ~1180–1240 px on large screens.
+Visual: craft “pixel forge” with **both** dark and light themes elevated (warm paper light palette, real shadows, forge/brand accent presence — not flat white-on-white). Emerald brand + blue accent + amber pipeline heat. Space Grotesk + JetBrains Mono (async font load); sticky header; stage is hero centrepiece (fills column ≥860px); forge panel top gradient rail; connected pipeline step strip (`#step-1…5` active/completed); section variety — numbered concept rails, try-it playbook, compare matrix rows, why checklist; light via `prefers-color-scheme`; `prefers-reduced-motion` respected. Single brand mark in header. Content max-width ~1180–1240 px.
 
 Demo defaults (from `server/server.mjs` / `docker-compose.prod.yml`): queues `spriteforge-frames|assemble|public`; concurrency 8 / 2 / 1; public cron `0 * * * * *` UTC; forge workflow `maxRetries: 5`.
 
