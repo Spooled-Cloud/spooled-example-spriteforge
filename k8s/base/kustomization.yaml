@@ -13,7 +13,7 @@ labels:
       app.kubernetes.io/managed-by: kustomize
       app.kubernetes.io/name: spooled-example-spriteforge
       app.kubernetes.io/component: example
-      app.kubernetes.io/version: "1.0.16"
+      app.kubernetes.io/version: "1.0.17"
 
 resources:
   - namespace.yaml

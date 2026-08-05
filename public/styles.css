@@ -1009,6 +1009,42 @@ kbd {
   }
 }
 
+/* Below 720px the base `min-width: max-content` held the rail at its natural
+   459px inside a ~363px column, and the `overflow: hidden` above clipped the
+   rest — steps 4 and 5 were cut off with no way to scroll to them. Wrap the
+   rail instead so every step of the pipeline stays reachable. */
+@media (max-width: 719px) {
+  /* Grid rather than wrapping flex: a wrapped rail packed 4 onto the first row
+     and orphaned "5 Assemble" alone on the second. Three columns splits the
+     five steps 3 + 2 predictably at every narrow width. */
+  .steps {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .step {
+    min-width: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Close the trailing edges the grid leaves behind. */
+  .step:nth-child(3n),
+  .step:last-child {
+    border-right: none;
+  }
+
+  .step:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+
+  /* The chevron points along a row, so it lies about the order once the rail
+     wraps; the numbers already carry the sequence. */
+  .step:not(:last-child)::after {
+    display: none;
+  }
+}
+
 .step {
   position: relative;
   display: flex;
