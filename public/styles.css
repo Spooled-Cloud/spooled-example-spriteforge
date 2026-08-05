@@ -643,7 +643,13 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100%;
+    /* min-height: 0, not 100%. The frame is a flex child of .stage, which also
+       holds .stage-head above it, so "at least the full height of the parent"
+       made the frame overflow .stage by exactly the head's height (~25px) and
+       run down into the pipeline rail below — measured as a 5px collision with
+       .steps at every width from 1280 to 1920. `flex: 1` already grows the
+       frame into the space the head leaves; 0 is the value that lets it. */
+    min-height: 0;
     padding: 1rem;
   }
 
