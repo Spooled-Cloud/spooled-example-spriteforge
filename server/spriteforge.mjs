@@ -93,18 +93,30 @@ export function generateFrame({
 
   const palette = getPaletteByName(paletteName);
 
-  const rng = seededRng(`${seed}|${palette.name}|${anim}|base`);
+  // Two independent RNG streams so a chosen palette has a CONSISTENT look:
+  //
+  // - colorRng is seeded by the palette name ALONE, so the body/accent colours
+  //   are fixed for a given palette. Previously the body/accent index came from
+  //   the seed-based stream, so with an empty Name (a random seed each forge)
+  //   "neon" landed on a different palette slot every click — yellow, then cyan,
+  //   then green. Selecting a palette now reliably means one colour identity.
+  //
+  // - shapeRng stays seed-based, so the silhouette and accessories still vary
+  //   from forge to forge (and are reproducible when you type a Name).
+  const colorRng = seededRng(`${palette.name}|colors`);
+  const shapeRng = seededRng(`${seed}|${palette.name}|${anim}|shape`);
 
-  // Choose some style knobs deterministically
-  const body = 3 + Math.floor(rng() * 3); // 3-5
-  const accent = 2 + Math.floor(rng() * 3); // 2-4
+  // Colours: stable per palette.
+  const body = 3 + Math.floor(colorRng() * 3); // 3-5
+  const accent = 2 + Math.floor(colorRng() * 3); // 2-4
   const highlight = 6;
   const outline = 0;
   const shadow = 1;
 
-  const hasCape = rng() < 0.45;
-  const hasHat = rng() < 0.55;
-  const hasSword = rng() < 0.5;
+  // Shape: varies with the seed.
+  const hasCape = shapeRng() < 0.45;
+  const hasHat = shapeRng() < 0.55;
+  const hasSword = shapeRng() < 0.5;
 
   // Animation phase [0..1)
   const phase = fCount <= 1 ? 0 : fi / fCount;
