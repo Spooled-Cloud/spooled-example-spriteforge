@@ -71,7 +71,7 @@ let palettes = [];
 let sprite = null;
 let lastWorkflowId = null;
 let animFrame = 0;
-let animT0 = 0;
+const ANIM_FPS = 8;
 let publicSpriteMsg = null;
 let currentPaletteName = null; // Track the selected palette for current forge
 let currentPaletteColors = null; // Store actual palette colors from first frame
@@ -371,12 +371,43 @@ function renderPreview() {
   }
 }
 
-function tick(t) {
-  if (!animT0) animT0 = t;
-  const dt = t - animT0;
-  const fps = 8;
-  animFrame = Math.floor((dt / 1000) * fps);
+// Frame index derived from ABSOLUTE time, not accumulated dt. This is
+// self-correcting: after any pause (tab backgrounded, low-power throttling of
+// requestAnimationFrame) the next paint jumps straight to the correct current
+// frame instead of resuming from a stale one. renderPreview() takes it % frame
+// count, so the unbounded value is fine.
+function currentAnimFrame() {
+  return Math.floor((performance.now() / 1000) * ANIM_FPS);
+}
+
+// Single paint entry point. Called from three independent clocks so the preview
+// can never get stuck on one frame — which matters because at phase 0 every
+// motion (walk/idle/dance) is pose-identical, so a frozen preview makes the
+// Motion setting look like it did nothing.
+function paintPreview() {
+  animFrame = currentAnimFrame();
   renderPreview();
+}
+
+function tick() {
+  paintPreview();
+  requestAnimationFrame(tick);
+}
+
+// Backstop clock: a timer keeps the animation advancing even when
+// requestAnimationFrame is deprioritized (unfocused window, reduced-motion,
+// battery saver). Both clocks read absolute time via paintPreview(), so they
+// cannot fight or double-advance. Started once in initUi().
+let animBackstop = null;
+function startPreviewAnimation() {
+  if (animBackstop) return;
+  animBackstop = setInterval(paintPreview, 1000 / ANIM_FPS);
+  // Repaint the moment the tab regains focus, so a user returning after the
+  // multi-second forge sees a live, motion-correct frame immediately rather
+  // than the frozen one rAF left behind.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) paintPreview();
+  });
   requestAnimationFrame(tick);
 }
 
@@ -853,7 +884,12 @@ function handleSpooledEvent(evt) {
       els.previewMeta.textContent = `Done! ${sprite.frameCount} frames • ${sprite.palette.length} colors`;
       els.previewStatus.textContent = '✅ Complete!';
       enableDownloadIfReady();
-      
+
+      // Paint immediately on arrival instead of waiting for the next rAF tick,
+      // so the new sprite (new palette, new motion) is on screen at once even if
+      // rAF is currently throttled.
+      paintPreview();
+
       // Mark step 5 as completed (all steps done)
       setStep(5);
       if (els.steps[4]) els.steps[4].classList.add('completed');
@@ -1043,9 +1079,9 @@ function initUi() {
     syncSticky(true);
   }
 
-  // Start animation loop
-  requestAnimationFrame(tick);
-  
+  // Start animation loop (rAF + timer backstop + focus-repaint)
+  startPreviewAnimation();
+
   // Public sprite animation
   setInterval(() => {
     if (publicSpriteMsg) renderPublicSprite(publicSpriteMsg);
