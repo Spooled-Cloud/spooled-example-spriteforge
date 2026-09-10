@@ -529,7 +529,15 @@ async function startWorkers() {
     const frames = [];
     for (const jobId of depJobIds) {
       const job = await client.jobs.get(jobId);
-      if (!job.result || typeof job.result !== "object") {
+      // Result is serde_json::Value. Arrays are typeof "object" in JS, so a
+      // JSON array (or a dict without pixels) used to pass this check and
+      // assemble a sprite with undefined frames.
+      if (
+        !job.result ||
+        typeof job.result !== "object" ||
+        Array.isArray(job.result) ||
+        !Array.isArray(job.result.pixels)
+      ) {
         throw new Error(`Missing result for frame job: ${jobId}`);
       }
       frames.push({

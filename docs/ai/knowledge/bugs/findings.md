@@ -15,3 +15,4 @@
 | SF-11 | P2  | `favicon.svg` was a 949 KB JPEG-in-SVG; only icon + only manifest icon                          | fixed              |
 | SF-12 | P2  | Public page had no `<h1>` (only control-panel `<h2>`); SEO/a11y regression                     | fixed              |
 | SF-13 | P2  | Prod compose `SOURCE_COMMIT:-unknown` clobbered CI-baked image ENV → live `/health` commit unknown | fixed           |
+| SF-14 | P2  | Assemble treated JSON-array frame results as objects (`typeof [] === "object"`) and built sprites with undefined frames | fixed |
