@@ -3,10 +3,27 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import os from "node:os";
 
 import { SpooledClient, SpooledRealtime, SpooledWorker } from "@spooled/sdk";
 
 import { generateFrame, PALETTES, getPaletteByName } from "./spriteforge.mjs";
+import {
+  createSseLimiter,
+  featureDisabledInfo,
+  getClientIp as clientIpFrom,
+  isInsideDir,
+  normalizeSessionId,
+  parseIntEnv,
+  parseTrustProxy,
+  resolveWorkerIdPrefix,
+  sessionIdProblem,
+} from "./guards.mjs";
+import {
+  createErrorLogLimiter,
+  missingWorkers,
+  superviseWorker,
+} from "./worker-supervisor.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +97,41 @@ const WORKER_CONCURRENCY_PUBLIC = Number(
   process.env.WORKER_CONCURRENCY_PUBLIC || 1,
 );
 
+// Trust cf-connecting-ip / x-real-ip / x-forwarded-for for the per-IP limits.
+// Keep it on behind Cloudflare or an ingress; set TRUST_PROXY=false (also 0,
+// no, off) when the port is reachable directly (otherwise any caller can pick
+// its own "IP"). Blank keeps the default (on).
+const TRUST_PROXY = parseTrustProxy(process.env.TRUST_PROXY);
+
+// Live (SSE) connection caps: per process and per client IP. The per-IP cap is
+// 30 rather than 10 because many visitors share one address (office / campus /
+// carrier NAT) and every open tab holds a stream. Blank keeps the default.
+const MAX_SSE_CLIENTS = parseIntEnv(process.env.MAX_SSE_CLIENTS, 500, 1);
+const MAX_SSE_PER_IP = parseIntEnv(process.env.MAX_SSE_PER_IP, 30, 1);
+const sseLimiter = createSseLimiter({
+  maxClients: MAX_SSE_CLIENTS,
+  maxPerIp: MAX_SSE_PER_IP,
+});
+
+// Stable worker ids make a restart an upsert instead of a second row against
+// the plan worker cap. Worker ids are a global primary key across ALL Spooled
+// organizations, so the default prefix is derived from the API key
+// (spriteforge-<8 hex of sha256(key)>), never a shared constant. Run ONE
+// replica per prefix (two processes sharing an id would share one worker row).
+const WORKER_ID_PREFIX = resolveWorkerIdPrefix(
+  process.env.WORKER_ID_PREFIX,
+  SPOOLED_API_KEY,
+);
+// How long stop() lets running handlers finish (SDK >= 1.3.0 drains). Keep it
+// under the platform's termination grace period: Kubernetes waits 30 s by
+// default, Docker only 10 s, which is why the compose files set
+// stop_grace_period: 30s on this service.
+const WORKER_SHUTDOWN_TIMEOUT_MS = parseIntEnv(
+  process.env.WORKER_SHUTDOWN_TIMEOUT_MS,
+  20_000,
+  0,
+);
+
 // Job retention: jobs expire after this duration (default 24 hours for demo)
 const JOB_RETENTION_HOURS = Number(process.env.JOB_RETENTION_HOURS || 24);
 
@@ -116,6 +168,7 @@ const stats = {
   lastHealthCheckAt: null,
   lastHealthCheckStatus: "unknown",
   circuitBreakerState: "unknown",
+  workers: {},
 };
 
 /**
@@ -258,28 +311,7 @@ function broadcastAll(eventName, data) {
 }
 
 function getClientIp(req) {
-  const header = (name) => {
-    const v = req.headers[name];
-    if (Array.isArray(v)) return v[0];
-    if (typeof v === "string" && v.length > 0) return v;
-    return null;
-  };
-
-  // Prefer Cloudflare / reverse-proxy headers when present
-  const cf = header("cf-connecting-ip");
-  const xReal = header("x-real-ip");
-  const xff = header("x-forwarded-for");
-
-  let ip =
-    cf ||
-    xReal ||
-    (xff ? xff.split(",")[0].trim() : null) ||
-    req.socket.remoteAddress ||
-    "unknown";
-
-  // Normalize IPv6-mapped IPv4 addresses (e.g. ::ffff:127.0.0.1)
-  if (typeof ip === "string" && ip.startsWith("::ffff:")) ip = ip.slice(7);
-  return ip;
+  return clientIpFrom(req, TRUST_PROXY);
 }
 
 // Very small in-memory rate limiter (good enough for a public demo)
@@ -328,18 +360,25 @@ async function readJson(req) {
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString("utf8");
+  let parsed;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
     throw Object.assign(new Error("invalid_json"), { statusCode: 400 });
   }
+  // Handlers read fields off the body: null / arrays / scalars are not requests.
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw Object.assign(new Error("invalid_json"), { statusCode: 400 });
+  }
+  return parsed;
 }
 
-function sendJson(res, statusCode, body) {
+function sendJson(res, statusCode, body, extraHeaders = {}) {
   const text = JSON.stringify(body);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(text),
+    ...extraHeaders,
   });
   res.end(text);
 }
@@ -367,7 +406,7 @@ function sendNoCacheJson(res, statusCode, body) {
 function safeJoinPublic(relPath) {
   const safe = relPath.replace(/^\/+/, "");
   const full = path.join(PUBLIC_DIR, safe);
-  if (!full.startsWith(PUBLIC_DIR)) {
+  if (!isInsideDir(PUBLIC_DIR, full)) {
     throw Object.assign(new Error("bad_path"), { statusCode: 400 });
   }
   return full;
@@ -441,15 +480,85 @@ function seededFloat(seed) {
   return n / 0xffffffff;
 }
 
-async function startWorkers() {
-  // Frames worker
-  const framesWorker = new SpooledWorker(client, {
-    queueName: QUEUE_FRAMES,
-    concurrency: clampInt(WORKER_CONCURRENCY_FRAMES, 1, 32),
-    leaseDuration: 30,
-  });
+/** Supervisors of the three workers (stopped on SIGTERM/SIGINT). */
+const supervisors = [];
 
-  framesWorker.process(async (ctx) => {
+/** Worker `error` events repeat every poll during an API outage: log few. */
+const workerErrorLog = createErrorLogLimiter({ every: 100, summaryMs: 60_000 });
+
+/**
+ * Build one SpooledWorker. Called once per start attempt: a worker whose
+ * start() failed refuses a second start, so every retry needs a new instance.
+ * `workerId` undefined means "let the API generate one".
+ */
+function newWorker({ queueName, concurrency, leaseDuration }, handler, workerId) {
+  const worker = new SpooledWorker(client, {
+    queueName,
+    ...(workerId ? { workerId } : {}),
+    hostname: os.hostname(),
+    shutdownTimeout: WORKER_SHUTDOWN_TIMEOUT_MS,
+    concurrency,
+    leaseDuration,
+  });
+  worker.process(handler);
+  return worker;
+}
+
+/**
+ * Start one worker without taking the whole app down. A transient failure
+ * (5xx, timeout, network) is retried in the background with backoff, a plan
+ * limit (Free: 1 worker, 429 QUOTA_EXCEEDED) slowly, and a 409 on the stable
+ * worker id falls back to a generated one. The returned promise settles after
+ * the FIRST attempt, so the web UI comes up without waiting for retries;
+ * /health and POST /api/forge report 503 until frames and assemble run.
+ */
+function runWorker(name, options, handler) {
+  const supervisor = superviseWorker({
+    name,
+    create: ({ useServerId }) =>
+      newWorker(
+        options,
+        handler,
+        useServerId ? undefined : `${WORKER_ID_PREFIX}-${name}`,
+      ),
+    onState: (state) => {
+      stats.workers[name] = state;
+    },
+    onStarted: (worker) => {
+      worker.on("error", ({ error }) => {
+        for (const line of workerErrorLog.report(
+          name,
+          `error: ${error?.message || error}`,
+        )) {
+          // eslint-disable-next-line no-console
+          console.error(`[worker:${name}] ${line}`);
+        }
+      });
+    },
+  });
+  supervisors.push(supervisor);
+  return supervisor.ready;
+}
+
+async function startWorkers() {
+  // Graceful shutdown: the SDK's stop() drains running handlers (up to
+  // WORKER_SHUTDOWN_TIMEOUT_MS), so stop all workers in parallel. Installed
+  // before the first start so a SIGTERM during boot still deregisters.
+  let stopping = false;
+  const stop = async () => {
+    if (stopping) return;
+    stopping = true;
+    try {
+      await Promise.allSettled(supervisors.map((w) => w.stop()));
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on("SIGTERM", stop);
+  process.on("SIGINT", stop);
+
+  // Frames worker
+  const framesHandler = async (ctx) => {
     const p = ctx.payload || {};
     const seed = String(p.seed || "seed");
     const paletteName = String(p.paletteName || "neon");
@@ -500,18 +609,20 @@ async function startWorkers() {
       pixels: frame.pixels,
       generatedAt: nowIso(),
     };
-  });
+  };
 
-  await framesWorker.start();
+  await runWorker(
+    "frames",
+    {
+      queueName: QUEUE_FRAMES,
+      concurrency: clampInt(WORKER_CONCURRENCY_FRAMES, 1, 32),
+      leaseDuration: 30,
+    },
+    framesHandler,
+  );
 
   // Assemble worker: uses workflow dependencies to fetch all frame job results
-  const assembleWorker = new SpooledWorker(client, {
-    queueName: QUEUE_ASSEMBLE,
-    concurrency: clampInt(WORKER_CONCURRENCY_ASSEMBLE, 1, 8),
-    leaseDuration: 60,
-  });
-
-  assembleWorker.process(async (ctx) => {
+  const assembleHandler = async (ctx) => {
     const p = ctx.payload || {};
     const sessionId = String(p.sessionId || "");
     const seed = String(p.seed || "seed");
@@ -567,18 +678,20 @@ async function startWorkers() {
       frames: spriteFrames,
       assembledAt: nowIso(),
     };
-  });
+  };
 
-  await assembleWorker.start();
+  await runWorker(
+    "assemble",
+    {
+      queueName: QUEUE_ASSEMBLE,
+      concurrency: clampInt(WORKER_CONCURRENCY_ASSEMBLE, 1, 8),
+      leaseDuration: 60,
+    },
+    assembleHandler,
+  );
 
   // Public schedule worker: creates a full sprite in a single job
-  const publicWorker = new SpooledWorker(client, {
-    queueName: QUEUE_PUBLIC,
-    concurrency: clampInt(WORKER_CONCURRENCY_PUBLIC, 1, 4),
-    leaseDuration: 60,
-  });
-
-  publicWorker.process(async (ctx) => {
+  const publicHandler = async (ctx) => {
     const p = ctx.payload || {};
     const animation = String(p.animation || "dance");
     const paletteName = String(
@@ -620,27 +733,28 @@ async function startWorkers() {
       frames,
       generatedAt: nowIso(),
     };
-  });
+  };
 
-  await publicWorker.start();
-
-  // eslint-disable-next-line no-console
-  console.log(
-    `Workers started: frames(${QUEUE_FRAMES}) assemble(${QUEUE_ASSEMBLE}) public(${QUEUE_PUBLIC})`,
+  await runWorker(
+    "public",
+    {
+      queueName: QUEUE_PUBLIC,
+      concurrency: clampInt(WORKER_CONCURRENCY_PUBLIC, 1, 4),
+      leaseDuration: 60,
+    },
+    publicHandler,
   );
 
-  // Graceful shutdown
-  const stop = async () => {
-    try {
-      await framesWorker.stop();
-      await assembleWorker.stop();
-      await publicWorker.stop();
-    } finally {
-      process.exit(0);
-    }
-  };
-  process.on("SIGTERM", stop);
-  process.on("SIGINT", stop);
+  const failed = Object.entries(stats.workers)
+    .filter(([, state]) => state !== "running")
+    .map(([name]) => name);
+  // eslint-disable-next-line no-console
+  console.log(
+    `Workers: frames(${QUEUE_FRAMES}) assemble(${QUEUE_ASSEMBLE}) public(${QUEUE_PUBLIC})` +
+      (failed.length
+        ? ` -- NOT running yet: ${failed.join(", ")}; retrying in the background (see README "Plan requirements")`
+        : " -- all running"),
+  );
 }
 
 function clampInt(n, min, max) {
@@ -995,6 +1109,15 @@ async function ensurePublicSchedule() {
       );
       return; // Success!
     } catch (error) {
+      if (error?.isQuota) {
+        // A plan quota is not transient: retrying cannot help.
+        // eslint-disable-next-line no-console
+        console.warn(
+          "⚠ Public schedule not created (plan limit):",
+          error?.message || error,
+        );
+        return;
+      }
       const errorCode = error?.code || error?.statusCode || "unknown";
       const errorMsg = error?.message || String(error);
 
@@ -1037,7 +1160,20 @@ function handleSse(req, res) {
     req.url ?? "/",
     `http://${req.headers.host || "localhost"}`,
   );
-  const sessionId = url.searchParams.get("sessionId") || crypto.randomUUID();
+  const slot = sseLimiter.acquire(getClientIp(req));
+  if (!slot.ok) {
+    res.writeHead(slot.status, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Retry-After": "15",
+    });
+    res.end(JSON.stringify({ error: slot.code, message: slot.message }));
+    return;
+  }
+  const sessionId = normalizeSessionId(
+    url.searchParams.get("sessionId"),
+    () => crypto.randomUUID(),
+  );
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -1069,6 +1205,7 @@ function handleSse(req, res) {
   }, 15000);
 
   req.on("close", () => {
+    slot.release();
     clearInterval(heartbeat);
     const set = sseClientsBySession.get(sessionId);
     if (set) {
@@ -1085,7 +1222,36 @@ async function handleForge(req, res) {
   rateLimitOrThrow(ip, { capacity: 6, refillPerSec: 1 });
 
   const body = await readJson(req);
-  const sessionId = String(body.sessionId || "");
+  const sessionProblem = sessionIdProblem(body.sessionId);
+  if (sessionProblem) {
+    sendJson(res, 400, { error: sessionProblem });
+    return;
+  }
+  const sessionId = body.sessionId;
+
+  // No point creating a workflow nobody will run: while the frames or the
+  // assemble worker is not registered (API outage, plan limit) the jobs would
+  // sit pending and the browser would wait on them forever.
+  const workersDown = missingWorkers(stats.workers);
+  if (workersDown.length > 0) {
+    sendJson(
+      res,
+      503,
+      {
+        error: "workers_unavailable",
+        message:
+          `Forge is paused: the ${workersDown.join(" and ")} worker${workersDown.length > 1 ? "s are" : " is"} not running, so new sprites cannot be built. ` +
+          (workersDown.some((n) => stats.workers[n] === "quota_exceeded")
+            ? "The Spooled plan's worker limit is reached (see the README, Plan requirements). "
+            : "") +
+          "The server keeps retrying; try again in a minute (see /health).",
+        missingWorkers: workersDown,
+      },
+      { "Retry-After": "15", "Cache-Control": "no-store" },
+    );
+    return;
+  }
+
   const seed =
     String(body.seed || "").slice(0, 64) || crypto.randomUUID().slice(0, 8);
   const paletteName = String(body.paletteName || "neon");
@@ -1094,11 +1260,6 @@ async function handleForge(req, res) {
   const width = clampInt(Number(body.width || 24), 16, 32);
   const height = clampInt(Number(body.height || 24), 16, 32);
   const failChance = clampNum(Number(body.failChance || 0), 0, 0.9);
-
-  if (!sessionId) {
-    sendJson(res, 400, { error: "missing_session_id" });
-    return;
-  }
 
   // Calculate expiration time for jobs (demo jobs should auto-cleanup)
   const expiresAt = new Date(
@@ -1230,13 +1391,14 @@ async function handleJobsBatch(req, res) {
   rateLimitOrThrow(`${ip}|jobs_batch`, { capacity: 20, refillPerSec: 8 });
 
   const body = await readJson(req);
-  const sessionId = String(body.sessionId || "");
-  const jobIds = Array.isArray(body.jobIds) ? body.jobIds : [];
-  const includeResult = Boolean(body.includeResult);
-  if (!sessionId) {
-    sendNoCacheJson(res, 400, { error: "missing_session_id" });
+  const sessionProblem = sessionIdProblem(body.sessionId);
+  if (sessionProblem) {
+    sendNoCacheJson(res, 400, { error: sessionProblem });
     return;
   }
+  const sessionId = body.sessionId;
+  const jobIds = Array.isArray(body.jobIds) ? body.jobIds : [];
+  const includeResult = Boolean(body.includeResult);
   if (jobIds.length === 0) {
     sendNoCacheJson(res, 200, { jobs: [] });
     return;
@@ -1278,8 +1440,13 @@ const server = http.createServer(async (req, res) => {
     );
 
     if (method === "GET" && url.pathname === "/health") {
-      // Determine health status based on recent API connectivity
-      const isHealthy = stats.healthCheckFailures < MAX_HEALTH_CHECK_FAILURES;
+      // Healthy = the API answers AND the workers a Forge needs (frames,
+      // assemble) are registered; otherwise 503 so orchestrators and
+      // monitors see the app cannot do its job (the UI itself still serves).
+      const workersDown = missingWorkers(stats.workers);
+      const isHealthy =
+        stats.healthCheckFailures < MAX_HEALTH_CHECK_FAILURES &&
+        workersDown.length === 0;
 
       sendJson(res, isHealthy ? 200 : 503, {
         ok: isHealthy,
@@ -1296,6 +1463,9 @@ const server = http.createServer(async (req, res) => {
           consecutiveFailures: stats.healthCheckFailures,
           circuitBreakerState: stats.circuitBreakerState,
         },
+        workers: stats.workers,
+        missingWorkers: workersDown,
+        sse: sseLimiter.stats(),
         stats: {
           activeSessions: sseClientsBySession.size,
           trackedJobs: jobIdToSession.size,
@@ -1331,6 +1501,19 @@ const server = http.createServer(async (req, res) => {
 
     sendText(res, 404, "Not found");
   } catch (error) {
+    // The plan does not include this feature (Free + workflows): say so
+    // instead of the SDK's UNKNOWN_ERROR.
+    const disabled = featureDisabledInfo(error);
+    if (disabled) {
+      sendJson(res, 403, {
+        error: "feature_disabled",
+        message: disabled.message,
+        feature: disabled.feature,
+        plan: disabled.plan,
+      });
+      return;
+    }
+
     const status = Number(error?.statusCode) || 500;
     const code =
       error?.message === "rate_limited"
@@ -1373,16 +1556,6 @@ const server = http.createServer(async (req, res) => {
     "───────────────────────────────────────────────────────────────",
   );
 
-  await startWorkers();
-  await startRealtime();
-  await ensurePublicSchedule();
-
-  // Start periodic cleanup of session mappings to prevent memory leaks
-  startSessionCleanup();
-
-  // Start periodic health check to detect API connectivity issues
-  startHealthCheck();
-
   server.listen(PORT, HOST, () => {
     // eslint-disable-next-line no-console
     console.log(
@@ -1395,6 +1568,16 @@ const server = http.createServer(async (req, res) => {
       "═══════════════════════════════════════════════════════════════",
     );
   });
+
+  // Start periodic cleanup of session mappings to prevent memory leaks
+  startSessionCleanup();
+
+  // Start periodic health check to detect API connectivity issues
+  startHealthCheck();
+
+  await startWorkers();
+  await startRealtime();
+  await ensurePublicSchedule();
 })().catch((err) => {
   // eslint-disable-next-line no-console
   console.error("Fatal error during startup:", err);

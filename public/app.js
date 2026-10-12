@@ -9,6 +9,8 @@
  * - DAG workflow dependencies
  */
 
+import { esc, jobFailedLine, statusTransitionLine } from './log-format.js';
+
 const $ = (id) => document.getElementById(id);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -600,7 +602,7 @@ async function forgeSprite() {
   els.previewMeta.textContent = 'Creating workflow…';
   els.previewStatus.textContent = 'Creating…';
   
-  logLine(`🎨 <strong>FORGE</strong> seed="${seed}" palette="${paletteName}" frames=${frameCount} chaos=${Math.round(failChance * 100)}%`, 'created');
+  logLine(`🎨 <strong>FORGE</strong> seed="${esc(seed)}" palette="${esc(paletteName)}" frames=${frameCount} chaos=${Math.round(failChance * 100)}%`, 'created');
 
   try {
     const res = await fetch('/api/forge', {
@@ -622,7 +624,7 @@ async function forgeSprite() {
       const body = await res.json().catch(() => ({}));
       els.previewMeta.textContent = `Error: ${body.error || res.status}`;
       els.previewStatus.textContent = 'Error';
-      logLine(`❌ Forge failed: ${body.message || body.error || res.status}`, 'failed');
+      logLine(`❌ Forge failed: ${esc(body.message || body.error || res.status)}`, 'failed');
       setStep(0);
       return;
     }
@@ -648,7 +650,7 @@ async function forgeSprite() {
     startReconcile(ids);
   } catch (err) {
     els.previewMeta.textContent = `Error: ${err.message}`;
-    logLine(`❌ Network error: ${err.message}`, 'failed');
+    logLine(`❌ Network error: ${esc(err.message)}`, 'failed');
     setStep(0);
   }
 }
@@ -688,7 +690,7 @@ function handleSpooledEvent(evt) {
       // Keep the log compact; only log meaningful transitions
       if (oldStatus && oldStatus !== newStatus) {
         const label = meta.key || job.key || data.jobId?.slice(0, 8) || '?';
-        logLine(`🔁 Status: <code>${label}</code> ${oldStatus} → <strong>${newStatus}</strong>`, 'info');
+        logLine(statusTransitionLine(label, oldStatus, newStatus), 'info');
       }
 
       if (newStatus === 'processing') {
@@ -747,7 +749,7 @@ function handleSpooledEvent(evt) {
       }
       updateStats();
     }
-    logLine(`⚙️ Processing: <code>${meta.key || data.jobId?.slice(0, 8)}</code>`, 'info');
+    logLine(`⚙️ Processing: <code>${esc(meta.key || data.jobId?.slice(0, 8))}</code>`, 'info');
   }
 
   if (normalizedType === 'job.failed') {
@@ -767,9 +769,12 @@ function handleSpooledEvent(evt) {
     
     const willRetry = data.willRetry !== false && data.will_retry !== false;
     logLine(
-      `${willRetry ? '🔄' : '❌'} <span class="event-${willRetry ? 'retry' : 'failed'}">FAILED</span> ` +
-      `<code>${meta.key || '?'}</code> — ${data.error || data.reason || 'unknown error'}` +
-      (willRetry ? ` (retry #${serverRetryCount + 1})` : ' (no more retries)'),
+      jobFailedLine({
+        key: meta.key,
+        error: data.error || data.reason,
+        retryCount: serverRetryCount,
+        willRetry,
+      }),
       willRetry ? 'retry' : 'failed'
     );
   }
@@ -947,13 +952,17 @@ function connectSse() {
     sessionId = msg.sessionId;
     palettes = msg.palettes || [];
 
-    // Populate palette dropdown
+    // Populate palette dropdown (keep the user's choice across auto-reconnects)
+    const previousPalette = els.palette.value;
     els.palette.innerHTML = '';
     for (const p of palettes) {
       const opt = document.createElement('option');
       opt.value = p.name;
       opt.textContent = `${getPaletteEmoji(p.name)} ${p.name}`;
       els.palette.appendChild(opt);
+    }
+    if (previousPalette && palettes.some((p) => p.name === previousPalette)) {
+      els.palette.value = previousPalette;
     }
 
     setPill('Connected', 'connected');
@@ -995,6 +1004,12 @@ function connectSse() {
 
   es.onerror = () => {
     setPill('Offline…', 'disconnected');
+    // A 429/503 (server at its SSE connection cap) makes the browser give up
+    // for good (readyState CLOSED); retry ourselves, slowly.
+    if (es.readyState === EventSource.CLOSED) {
+      setPill('Server busy, retrying…', 'disconnected');
+      setTimeout(connectSse, 15000);
+    }
   };
 }
 
@@ -1026,7 +1041,7 @@ function initUi() {
   });
 
   const runForge = () => {
-    forgeSprite().catch((e) => logLine(`Error: ${e.message}`, 'failed'));
+    forgeSprite().catch((e) => logLine(`Error: ${esc(e.message)}`, 'failed'));
   };
 
   // Buttons

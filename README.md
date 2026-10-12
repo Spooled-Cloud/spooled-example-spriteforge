@@ -60,6 +60,25 @@ SpriteForge is a **real-time pixel art sprite generator** that demonstrates [Spo
 - Node.js 20+
 - A [Spooled Cloud](https://spooled.cloud) API key (or self-hosted Spooled)
 
+### Plan requirements
+
+SpriteForge needs a **Starter plan or higher**. It will not do its job on a Free key. Limits checked against `spooled-backend/src/config/plans.rs` (Free / Starter):
+
+| Resource | SpriteForge uses | Free | Starter |
+| -------- | ---------------- | ---- | ------- |
+| Workers | 3 (frames, assemble, public) | 1 | 5 |
+| Queues | 3 (`spriteforge-frames`, `-assemble`, `-public`) | 2 | 10 |
+| Workflows (counted while pending or running) | 1 per Forge click | 0 (disabled) | 5 at the same time |
+| Active jobs (pending + processing + scheduled) | up to 13 per Forge (12 frames + assemble), plus 1 per minute from the public schedule | 10 | 500 |
+| Schedules | 1 (public sprite) | 1 | 10 |
+| Jobs per day | the public schedule alone is 1,440/day | 1,000 | 10,000 |
+
+What happens on Free: the web UI still comes up, but only the first worker registers (the others get `429 QUOTA_EXCEEDED`, logged and shown under `workers` in `/health`), so `/health` answers `503` (`ok: false`, `missingWorkers`) and `POST /api/forge` answers `503 workers_unavailable`. When the workers do run but the plan has no workflows (Free), `POST /api/forge` answers `403 feature_disabled` ("workflows is not available on the Free plan"), which the app relays as such instead of `UNKNOWN_ERROR`. On Starter the workflows limit counts workflows that are pending or running, so a sixth simultaneous Forge gets `429 QUOTA_EXCEEDED` until one finishes; finished workflows no longer count. Set `ENABLE_PUBLIC_SCHEDULE=false` if you want to keep the daily job budget for interactive use.
+
+A worker that cannot register for a transient reason (API 5xx, timeout, network) is retried in the background with exponential backoff (2 s up to 60 s), each try on a fresh `SpooledWorker`; plan-limit and other 4xx refusals are retried every five minutes, so an upgrade or a recovered API is picked up without a restart. `/health` and Forge turn healthy again as soon as the frames and assemble workers run.
+
+Workers register with stable ids (`<WORKER_ID_PREFIX>-frames|assemble|public`), so a restart reuses its rows instead of holding the plan worker cap for about two minutes. Worker ids are a global primary key across all Spooled organizations, so the default prefix is `spriteforge-<first 8 hex of sha256(SPOOLED_API_KEY)>`, not a shared name; if the API still answers `409` (the id belongs to another organization) the worker registers without an id and the server generates one (logged once; each restart then adds a row until the old one expires). Run **one** replica per prefix (the Kubernetes manifests use one replica and the `Recreate` strategy for that reason).
+
 ### Local Development
 
 ```bash
@@ -229,7 +248,7 @@ These are high-level manual starting points, not tested one-click deployments. T
 GET /health
 ```
 
-Returns `200 OK` when the server is healthy.
+Returns `200 OK` when the Spooled API checks are passing and the frames and assemble workers are running; otherwise `503` with `ok: false` and the missing workers under `missingWorkers` (the web UI itself still serves).
 
 ### Create Sprite (Forge)
 
@@ -369,11 +388,12 @@ curl http://localhost:3000/health
 
 ### SDK and Security Notes
 
-SpriteForge pins `@spooled/sdk` to the exact SDK version it is tested against in `package.json`; the committed `package-lock.json` records the same exact SDK version reproduced by `npm ci`. Review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
+SpriteForge declares `@spooled/sdk` as `^1.3.0` in `package.json`; the committed `package-lock.json` records the exact SDK version reproduced by `npm ci`. Review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
 
 When deploying publicly:
 - Use a **dedicated Spooled organization** for the demo.
 - Set **plan limits** and retain the app’s built-in per-IP request limits.
+- The live event stream (`GET /api/events`) is capped to `MAX_SSE_CLIENTS` (default 500) per process and `MAX_SSE_PER_IP` (default 30, because many visitors share one NAT address and each open tab holds a stream) per client IP; over the cap the server answers `503 sse_capacity` / `429 sse_per_ip_limit` with `Retry-After`. Per-IP limits trust `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` by default; set `TRUST_PROXY=false` (also `0`, `no`, `off`) if the port is reachable without Cloudflare or an ingress in front. `sessionId` must be 8-64 URL-safe characters on `/api/forge` and `/api/jobs/batch` too (`400 invalid_session_id` otherwise).
 - Keep `SPOOLED_API_KEY` server-side; the browser only calls SpriteForge endpoints.
 
 ---

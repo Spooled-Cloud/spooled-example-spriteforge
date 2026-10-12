@@ -22,6 +22,8 @@
 #   SPRITEFORGE_IMAGE       - Docker image (default: ghcr.io/spooled-cloud/spooled-example-spriteforge:latest)
 #   SPOOLED_BASE_URL        - Backend API URL
 #   SPOOLED_WS_URL          - WebSocket URL
+#   TRUST_PROXY, MAX_SSE_CLIENTS, MAX_SSE_PER_IP, WORKER_ID_PREFIX,
+#   WORKER_SHUTDOWN_TIMEOUT_MS - passed through; blank (unset) = the app default
 #   SOURCE_COMMIT / IMAGE_DIGEST - optional /health identity overrides only;
 #     leave unset so CI-baked image SOURCE_COMMIT is visible
 #
@@ -70,6 +72,26 @@ services:
 
       # Job Retention (for cleanup)
       JOB_RETENTION_HOURS: ${JOB_RETENTION_HOURS:-24}
+
+      # Proxy, live connections, worker ids (blank = the app's own default, so a
+      # stack that does not set them behaves exactly as before)
+      # TRUST_PROXY: default on (this stack sits behind Cloudflare Tunnel); set
+      #   false/0/no/off only if the port is exposed without a proxy.
+      TRUST_PROXY: ${TRUST_PROXY:-}
+      # SSE streams per process / per client IP (defaults 500 / 30; the per-IP
+      # cap is generous because many visitors share one NAT address).
+      MAX_SSE_CLIENTS: ${MAX_SSE_CLIENTS:-}
+      MAX_SSE_PER_IP: ${MAX_SSE_PER_IP:-}
+      # Worker id prefix: blank = spriteforge-<hash of the API key> (worker ids
+      # are global across organizations). One replica per prefix.
+      WORKER_ID_PREFIX: ${WORKER_ID_PREFIX:-}
+      # Ms running jobs may finish after SIGTERM (default 20000; must stay under
+      # stop_grace_period below).
+      WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-}
+
+    # Docker stops a container after 10 s by default; the app drains running
+    # jobs for up to 20 s on SIGTERM, so give it 30 s (as Kubernetes does).
+    stop_grace_period: 30s
 
     healthcheck:
       test:

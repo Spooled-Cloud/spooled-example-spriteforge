@@ -55,7 +55,24 @@ services:
       # Optional - Job retention (for cleanup)
       - JOB_RETENTION_HOURS=${JOB_RETENTION_HOURS:-24}
 
+      # Optional - Proxy, live connections, worker ids (blank = app default)
+      # TRUST_PROXY defaults to on; set false/0/no/off when this port is
+      # reachable without a proxy in front.
+      - TRUST_PROXY=${TRUST_PROXY:-}
+      # SSE streams per process / per client IP (defaults 500 / 30; the per-IP
+      # cap is generous because many visitors share one NAT address).
+      - MAX_SSE_CLIENTS=${MAX_SSE_CLIENTS:-}
+      - MAX_SSE_PER_IP=${MAX_SSE_PER_IP:-}
+      # Blank = spriteforge-<hash of the API key>; one replica per prefix.
+      - WORKER_ID_PREFIX=${WORKER_ID_PREFIX:-}
+      # Ms running jobs may finish after SIGTERM (default 20000).
+      - WORKER_SHUTDOWN_TIMEOUT_MS=${WORKER_SHUTDOWN_TIMEOUT_MS:-}
+
     restart: unless-stopped
+
+    # Docker stops a container after 10 s by default; the app drains running
+    # jobs for up to 20 s on SIGTERM, so give it 30 s (as Kubernetes does).
+    stop_grace_period: 30s
 
     healthcheck:
       test:

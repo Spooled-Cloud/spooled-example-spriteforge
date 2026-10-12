@@ -32,6 +32,10 @@ This guide covers deploying SpriteForge to production. Choose the method that fi
 - Plan limits to prevent abuse on public deployment
 - If you also self-host the Spooled **backend**, use that repo’s `docker-compose.prod.yml` — gRPC TLS and Prometheus/Grafana bootstrap automatically (no busybox Exited-0 init containers). Production Compose defaults to `:latest` for easy Portainer **Pull and redeploy**. See `spooled-backend/docs/guides/deployment.md` (**Zero-touch init**) and `spooled-backend/docs/guides/production-host-portainer.md`.
 
+### Plan requirements
+
+A **Starter plan or higher** is required: 3 workers (Free allows 1), 3 queues (Free allows 2), workflows (Free: disabled, Starter: 5 pending or running at the same time) and up to 13 active jobs per Forge (Free allows 10 active jobs, Starter 500). On Free the app still boots and serves `/`, but only one worker registers (`/health` lists the others under `workers`), so `/health` answers `503` and Forge answers `503 workers_unavailable`; when the workers do run but the plan has no workflows (Free), Forge answers `403 feature_disabled` ("workflows is not available on the Free plan"), relayed as such. The container health check, Compose and the Kubernetes probes all use `/health`, so a Free key shows as unhealthy. On Starter the workflows limit counts workflows that are pending or running, so a sixth simultaneous Forge gets `429 QUOTA_EXCEEDED` until one finishes. The default public schedule (every minute) alone is 1,440 jobs/day, above the Free 1,000/day and a large share of Starter's 10,000/day; set `ENABLE_PUBLIC_SCHEDULE=false` to save the budget. See the README "Plan requirements" table.
+
 ---
 
 ## Docker Compose (Production)
@@ -284,6 +288,18 @@ CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoiNTM...your_token
 | `WORKER_CONCURRENCY_ASSEMBLE` | `2`     | Concurrent assemble jobs                |
 | `WORKER_CONCURRENCY_PUBLIC`   | `1`     | Concurrent scheduled public-sprite jobs |
 
+### Optional - Workers, live connections and proxy
+
+The Compose files and the Kubernetes ConfigMap pass these through; a blank (or unset) value means the default below.
+
+| Variable                     | Default       | Description                                                                                          |
+| ---------------------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `WORKER_ID_PREFIX`           | `spriteforge-<8 hex of sha256(SPOOLED_API_KEY)>` | Stable worker ids `<prefix>-frames/-assemble/-public`; one replica per prefix. Worker ids are global across organizations, so leave it blank unless you need a fixed name (on a `409` the worker registers without an id) |
+| `WORKER_SHUTDOWN_TIMEOUT_MS` | `20000`       | How long SIGTERM lets running jobs finish before they are aborted and failed; Compose sets `stop_grace_period: 30s` (Docker's default is 10 s)  |
+| `MAX_SSE_CLIENTS`            | `500`         | Max concurrent `/api/events` streams per process (503 `sse_capacity`)                                |
+| `MAX_SSE_PER_IP`             | `30`          | Max concurrent `/api/events` streams per client IP (429 `sse_per_ip_limit`); generous because many visitors share one NAT address |
+| `TRUST_PROXY`                | `true`        | Trust `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for`; `false`, `0`, `no` or `off` if the port is exposed directly |
+
 ### Optional - Schedule
 
 | Variable                   | Default                     | Description                              |
@@ -328,10 +344,10 @@ Release-facing documentation and image examples are additional review surfaces, 
 
 `@spooled/sdk` has different semantics from the SpriteForge application version:
 
-- `package.json` declares the exact SDK version SpriteForge is tested against.
+- `package.json` declares the SDK range SpriteForge is tested against.
 - `package-lock.json` records the exact SDK package resolved and reproduced by `npm ci`.
 
-At the current documented state, `package.json` pins `@spooled/sdk` to `1.0.39` and `package-lock.json` resolves the SDK to exactly `1.0.39`; `npm ci` reproduces that resolution. Do not pin below `1.0.39`, which carries the worker lease-fencing fixes SpriteForge depends on. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
+At the current documented state, `package.json` declares `@spooled/sdk` as `^1.3.0` and `package-lock.json` resolves the SDK to exactly `1.3.0`; `npm ci` reproduces that resolution. Do not go below `1.3.0`: it drains workers on `stop()`, retries acks, never retries plan-quota 429s and keeps the realtime JWT off the REST bearer. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
 
 ### CI and image publication model
 
@@ -398,7 +414,8 @@ This checklist is advisory evidence tracking. Items may be marked `N/A`, or an e
 
 ```bash
 curl http://localhost:3000/health
-# Returns 200 while fewer than three consecutive periodic Spooled API checks have failed.
+# Returns 200 while fewer than three consecutive periodic Spooled API checks have failed
+# AND the frames and assemble workers are running; 503 (ok: false, missingWorkers) otherwise.
 # The JSON includes API/circuit-breaker status plus session, job, workflow, and cleanup counters.
 ```
 

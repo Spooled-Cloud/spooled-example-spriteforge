@@ -7,6 +7,10 @@ metadata:
     app.kubernetes.io/component: example
 spec:
   replicas: 1
+  # Recreate: workers register with stable ids and the plan caps workers, so
+  # the old and new pod must never run side by side.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: spooled-example-spriteforge

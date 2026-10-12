@@ -1,6 +1,6 @@
 # SpriteForge example — Agent Knowledge Base
 
-Demo app **v1.0.21** using `@spooled/sdk` **1.0.39** (lease fencing on complete/fail/heartbeat). Live: `example.spooled.cloud`.
+Demo app **v1.0.21** using `@spooled/sdk` **^1.3.0** (lease fencing, draining `worker.stop()`, ack retries, quota 429s not retried). Live: `example.spooled.cloud`.
 
 Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, workflows, schedules, realtime bridge. `/health` returns app version/commit/digest identity; CI bakes `SOURCE_COMMIT` into the image. **Prod compose must not default `SOURCE_COMMIT=unknown`** (clobbers bake — SF-13). Health check runs once at boot, then every 5m. Assemble requires each frame job `result` to be a non-array object with a `pixels` array (`typeof [] === "object"` used to assemble undefined frames — SF-14).
 
@@ -28,4 +28,13 @@ Visual: craft “pixel forge” with **both** dark and light themes elevated (wa
 
 Demo defaults (from `server/server.mjs` / `docker-compose.prod.yml`): queues `spriteforge-frames|assemble|public`; concurrency 8 / 2 / 1; public cron `0 * * * * *` UTC; forge workflow `maxRetries: 5`.
 
-See `DEPLOY.md` for deploy. **Do not pin SDK below 1.0.39** while backend enforces lease_id fencing (see SF-02). `package.json` pins the exact SDK version SpriteForge is tested against. Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.
+See `DEPLOY.md` for deploy. **Do not go below SDK 1.3.0** (lease fencing from 1.0.39, see SF-02; drain/ack-retry/quota behaviour from 1.3.0). `package.json` declares `^1.3.0`; the lockfile holds the exact version. Needs a Starter plan or higher (README "Plan requirements"); SSE streams are capped (`MAX_SSE_CLIENTS` 500, `MAX_SSE_PER_IP` 30: shared NAT). Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.
+
+## Workers, health and config (server/)
+
+- `server/worker-supervisor.mjs`: `superviseWorker` starts each worker through a factory (a `SpooledWorker` whose `start()` failed refuses a second start, so every retry is a NEW instance). Transient failures (5xx, timeout, network, circuit breaker) retry with backoff 2 s to 60 s; quota and other 4xx retry every 5 min; the first attempt is awaited, retries run in the background. Worker `error` events go through `createErrorLogLimiter` (first, every 100th, one summary a minute).
+- `/health` is `503` / `ok: false` (with `missingWorkers`) until the **frames and assemble** workers run, and `POST /api/forge` answers `503 workers_unavailable` then. The public worker is optional. A Free key therefore shows unhealthy by design.
+- Worker ids are a global primary key across organizations: default prefix `spriteforge-<8 hex of sha256(SPOOLED_API_KEY)>` (`WORKER_ID_PREFIX` overrides); a 409 on the id falls back to registering without a `workerId` (logged once per worker).
+- `server/guards.mjs` holds the pure helpers (`parseTrustProxy`: false/0/no/off, trimmed, any case = off; `parseIntEnv`: blank = default; `sessionIdProblem`: 400 `missing_session_id` / `invalid_session_id` on `/api/forge` and `/api/jobs/batch`; `featureDisabledInfo`: Free + workflows is relayed as `403 feature_disabled`, not `UNKNOWN_ERROR`).
+- The compose files and `k8s/base/configmap.yaml` pass `TRUST_PROXY`, `MAX_SSE_CLIENTS`, `MAX_SSE_PER_IP`, `WORKER_ID_PREFIX` (blank) and `WORKER_SHUTDOWN_TIMEOUT_MS` through; blank means the code default, so a stack that sets none of them behaves as before. Compose sets `stop_grace_period: 30s` (Docker's default is 10 s; the worker drain is 20 s).
+- `public/log-format.js` builds the Events-log HTML for job keys, job error text and status names with `esc()`; `logLine()` uses innerHTML, so never interpolate server text raw.

@@ -61,6 +61,9 @@ jobs:
       - name: Check for syntax errors
         run: npm run check:syntax
 
+      - name: Unit and boot tests
+        run: npm test
+
   # Docker build on main branch
   docker:
     name: Docker Build

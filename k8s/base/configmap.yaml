@@ -29,3 +29,15 @@ data:
 
   # Job retention (hours until demo jobs expire)
   JOB_RETENTION_HOURS: "24"
+
+  # Proxy, live connections, worker ids (the app's own defaults; blank = default)
+  # TRUST_PROXY: on behind the ingress; "false" if the pod is reachable directly.
+  TRUST_PROXY: "true"
+  # SSE streams per process / per client IP (per-IP is generous: shared NAT).
+  MAX_SSE_CLIENTS: "500"
+  MAX_SSE_PER_IP: "30"
+  # Blank = spriteforge-<hash of the API key> (worker ids are global across
+  # organizations). One replica per prefix.
+  WORKER_ID_PREFIX: ""
+  # Ms running jobs may finish after SIGTERM (Kubernetes waits 30 s).
+  WORKER_SHUTDOWN_TIMEOUT_MS: "20000"
