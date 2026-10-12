@@ -300,6 +300,16 @@ The Compose files and the Kubernetes ConfigMap pass these through; a blank (or u
 | `MAX_SSE_PER_IP`             | `30`          | Max concurrent `/api/events` streams per client IP (429 `sse_per_ip_limit`); generous because many visitors share one NAT address |
 | `TRUST_PROXY`                | `true`        | Trust `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for`; `false`, `0`, `no` or `off` if the port is exposed directly |
 
+### Optional - Security headers
+
+Every response (the UI, `/health`, API errors, the event stream) carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` that switches off camera, microphone, geolocation, payment and USB, and a `Content-Security-Policy`. The default policy allows this origin plus the Google Fonts stylesheet and font files, allows no inline script or style, and forbids framing (`frame-ancestors 'none'`). The app does not send HSTS (it also serves plain HTTP in development); set that at the proxy or Cloudflare.
+
+| Variable                  | Default                  | Description                                                                                                                         |
+| ------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `CONTENT_SECURITY_POLICY` | *(the policy above)*     | Blank keeps the default. `off` (also `false`, `0`, `no`, `none`) sends no policy, for a proxy in front that sets its own. Any other value replaces the default; a policy that blocks the page's own script, stylesheet or event stream breaks the UI. The Compose files and the Kubernetes ConfigMap pass it through. |
+
+The Kubernetes ingress no longer adds its own copy of these headers (it used to send `X-Frame-Options: SAMEORIGIN`, which would conflict with the app's `DENY`).
+
 ### Optional - Schedule
 
 | Variable                   | Default                     | Description                              |
@@ -356,6 +366,7 @@ At the current documented state, `package.json` declares `@spooled/sdk` as `^1.3
 - `check` installs with `npm ci`, runs the tag-only application-version assertion when applicable, and checks server JavaScript syntax.
 - Main pushes that pass `check` publish multi-architecture `linux/amd64` and `linux/arm64` images tagged `latest` and with the short source commit SHA; images bake `SOURCE_COMMIT=${{ github.sha }}` for `/health` identity.
 - Tag pushes that pass `check` publish the literal release tag, refresh `latest`, and create a GitHub Release.
+- Every published image (main and tag) carries OCI labels: `org.opencontainers.image.revision` (the commit), `org.opencontainers.image.version` (the application version: the `package.json` version on main, the tag without its `v` on a release), `org.opencontainers.image.source` (the repository) and title, description, url, vendor and licenses. The `Dockerfile` sets them from the `SOURCE_COMMIT` and `APP_VERSION` build arguments and `docker/metadata-action` sets the same revision and version, so `docker image inspect` identifies an image without running it. Before 1.0.23 the tag build set no labels.
 - The filesystem Trivy scan is currently non-blocking (`exit-code: 0`) and should be recorded as such rather than described as a release gate.
 
 Main publication remains independent of the tag-only assertion. A workflow run and GHCR image prove artifact publication, not deployment to `example.spooled.cloud`, Docker Compose, Kubernetes, or another platform.
@@ -380,6 +391,7 @@ This checklist is advisory evidence tracking. Items may be marked `N/A`, or an e
 - [ ] Create the tag on the validated commit and confirm `git rev-parse "${RELEASE_TAG}^{}"` resolves to that commit.
 - [ ] Record the successful CI/release workflow and GitHub Release URL.
 - [ ] Confirm both architecture images and the multi-architecture `ghcr.io/spooled-cloud/spooled-example-spriteforge:${RELEASE_TAG}` manifest exist.
+- [ ] Confirm the image labels on the pulled image: `docker image inspect ghcr.io/spooled-cloud/spooled-example-spriteforge:${RELEASE_TAG} --format '{{ index .Config.Labels "org.opencontainers.image.revision" }} {{ index .Config.Labels "org.opencontainers.image.version" }}'` prints the release commit and `${RELEASE_VERSION}`.
 - [ ] Record the immutable GHCR digest. Do not use mutable `latest` as release identity.
 - [ ] Confirm source commit, application version, Git tag, GitHub Release, image tag, and digest describe the same artifact.
 
@@ -393,6 +405,7 @@ This checklist is advisory evidence tracking. Items may be marked `N/A`, or an e
 #### Verify health and end-to-end behavior
 
 - [ ] Call the deployed `GET /health`; require `200` and inspect API/circuit-breaker status, `app.version`, `app.commit`, optional `app.imageDigest`, plus session/job/workflow counters.
+- [ ] Check the response headers of `/` (`curl -sSI`): `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Content-Security-Policy` are present, and `HEAD /health` answers `200` like the `GET`.
 - [ ] Treat `/health` identity as app-reported evidence; still connect live state to the artifact using platform/deployment provenance and the resolved runtime image digest.
 - [ ] Load the public UI in a clean browser session and check console/network errors.
 - [ ] Using a dedicated Spooled organization, forge a sprite and verify workflow creation, frame processing, assembly, and rendered output.
@@ -417,6 +430,9 @@ curl http://localhost:3000/health
 # Returns 200 while fewer than three consecutive periodic Spooled API checks have failed
 # AND the frames and assemble workers are running; 503 (ok: false, missingWorkers) otherwise.
 # The JSON includes API/circuit-breaker status plus session, job, workflow, and cleanup counters.
+
+curl -I http://localhost:3000/health
+# HEAD answers like GET (same status and headers, no body), for monitors that probe with HEAD.
 ```
 
 ### Docker Health Check
@@ -490,6 +506,7 @@ fly logs
 2. **Dedicated Org**: Use separate organization for public demo
 3. **Plan Limits**: Set job/workflow limits to prevent abuse
 4. **Rate Limiting**: The app has in-memory per-IP limits for forge and reconciliation requests; add reverse-proxy limits for stronger or multi-replica enforcement.
+5. **Security Headers**: The app sends `X-Frame-Options: DENY`, `nosniff`, a `Referrer-Policy`, a `Permissions-Policy` and a `Content-Security-Policy` on every response (see "Optional - Security headers"); keep a proxy in front from adding conflicting copies, and set HSTS there.
 
 ---
 

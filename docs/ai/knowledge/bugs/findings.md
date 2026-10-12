@@ -16,3 +16,6 @@
 | SF-12 | P2  | Public page had no `<h1>` (only control-panel `<h2>`); SEO/a11y regression                     | fixed              |
 | SF-13 | P2  | Prod compose `SOURCE_COMMIT:-unknown` clobbered CI-baked image ENV → live `/health` commit unknown | fixed           |
 | SF-14 | P2  | Assemble treated JSON-array frame results as objects (`typeof [] === "object"`) and built sprites with undefined frames | fixed |
+| SF-15 | P3  | `HEAD` answered 404 on every path including `/health` (monitors probing with HEAD saw the app as down) | fixed in v1.0.23 |
+| SF-16 | P3  | No clickjacking / content security headers (no X-Frame-Options, CSP, Referrer-Policy); inline `onload` / `onsubmit` in `index.html` blocked the first CSP draft | fixed in v1.0.23 |
+| SF-17 | P3  | Tag-built image had no `org.opencontainers.image.revision` / version / source labels | fixed in v1.0.23 |
