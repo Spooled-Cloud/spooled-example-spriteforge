@@ -19,3 +19,4 @@
 | SF-15 | P3  | `HEAD` answered 404 on every path including `/health` (monitors probing with HEAD saw the app as down) | fixed in v1.0.23 |
 | SF-16 | P3  | No clickjacking / content security headers (no X-Frame-Options, CSP, Referrer-Policy); inline `onload` / `onsubmit` in `index.html` blocked the first CSP draft | fixed in v1.0.23 |
 | SF-17 | P3  | Tag-built image had no `org.opencontainers.image.revision` / version / source labels | fixed in v1.0.23 |
+| SF-18 | P3  | The v1.0.23 CSP blocked the Cloudflare Web Analytics beacon the zone injects at the edge (CSP violation on every page load, zone analytics stopped for this site) | fixed in v1.0.24 |

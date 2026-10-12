@@ -172,15 +172,19 @@ export function createSseLimiter({ maxClients = 500, maxPerIp = 10 } = {}) {
  * module script from this origin, one stylesheet from this origin plus the
  * Google Fonts stylesheet and font files, and talks only to this server
  * (fetch + EventSource); it has no inline script, inline style or iframe.
+ * Cloudflare Web Analytics, when the zone injects its beacon at the edge, is
+ * allowed too (script from static.cloudflareinsights.com, reports to
+ * cloudflareinsights.com); without it every page load logged a CSP violation
+ * and the zone's analytics silently stopped for this site.
  * Everything else is closed, and no other site may frame it.
  */
 export const DEFAULT_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' https://static.cloudflareinsights.com",
   "style-src 'self' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

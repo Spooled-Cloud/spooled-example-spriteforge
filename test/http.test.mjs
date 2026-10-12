@@ -258,8 +258,9 @@ test("default policy: closed by default, no framing, no inline script or style",
   assert.deepEqual(directives["default-src"], ["'self'"]);
   assert.deepEqual(directives["frame-ancestors"], ["'none'"]);
   assert.deepEqual(directives["object-src"], ["'none'"]);
-  assert.deepEqual(directives["script-src"], ["'self'"]);
-  assert.deepEqual(directives["connect-src"], ["'self'"]);
+  // Only the Cloudflare Web Analytics beacon the zone injects at the edge.
+  assert.deepEqual(directives["script-src"], ["'self'", "https://static.cloudflareinsights.com"]);
+  assert.deepEqual(directives["connect-src"], ["'self'", "https://cloudflareinsights.com"]);
   assert.deepEqual(directives["base-uri"], ["'self'"]);
   assert.doesNotMatch(DEFAULT_CONTENT_SECURITY_POLICY, /unsafe-|\*/);
   assert.deepEqual(directives["style-src"], ["'self'", "https://fonts.googleapis.com"]);

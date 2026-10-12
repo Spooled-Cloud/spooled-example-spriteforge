@@ -395,7 +395,7 @@ When deploying publicly:
 - Set **plan limits** and retain the app’s built-in per-IP request limits.
 - The live event stream (`GET /api/events`) is capped to `MAX_SSE_CLIENTS` (default 500) per process and `MAX_SSE_PER_IP` (default 30, because many visitors share one NAT address and each open tab holds a stream) per client IP; over the cap the server answers `503 sse_capacity` / `429 sse_per_ip_limit` with `Retry-After`. Per-IP limits trust `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` by default; set `TRUST_PROXY=false` (also `0`, `no`, `off`) if the port is reachable without Cloudflare or an ingress in front. `sessionId` must be 8-64 URL-safe characters on `/api/forge` and `/api/jobs/batch` too (`400 invalid_session_id` otherwise).
 - Keep `SPOOLED_API_KEY` server-side; the browser only calls SpriteForge endpoints.
-- Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` and a `Content-Security-Policy` (this origin plus the Google Fonts stylesheet; no inline script or style; no framing). `CONTENT_SECURITY_POLICY` replaces the policy (`off` sends none); see [DEPLOY.md](DEPLOY.md). HSTS is left to your proxy.
+- Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a `Permissions-Policy` and a `Content-Security-Policy` (this origin plus the Google Fonts stylesheet and the Cloudflare Web Analytics beacon a zone may inject; no inline script or style; no framing). `CONTENT_SECURITY_POLICY` replaces the policy (`off` sends none); see [DEPLOY.md](DEPLOY.md). HSTS is left to your proxy.
 
 ---
 
