@@ -17,7 +17,13 @@ async function runningApp(mockOptions = {}, env = {}) {
   track(() => mock.close());
   const app = await startApp(mock.url, env);
   track(() => app.stop());
-  await waitUntil(async () => (await app.health()).status === 200);
+  // /health is 200 as soon as frames and assemble run; the public worker
+  // registers right after them, so wait for all three (the registrations the
+  // tests read from the mock would otherwise race).
+  await waitUntil(async () => {
+    const h = await app.health();
+    return h.status === 200 && h.body.workers?.public === "running";
+  });
   return { mock, app };
 }
 
