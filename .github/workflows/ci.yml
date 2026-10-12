@@ -84,6 +84,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - id: pkg
+        run: echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       - id: meta
         uses: docker/metadata-action@v6
         with:
@@ -91,6 +94,11 @@ jobs:
           tags: |
             type=sha,prefix=
             type=raw,value=latest
+          # Custom labels win over the generated ones: the version label is
+          # the application version, not the short sha tag.
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.pkg.outputs.VERSION }}
 
       - uses: docker/build-push-action@v7
         with:
@@ -101,6 +109,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}
+            APP_VERSION=${{ steps.pkg.outputs.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -140,7 +149,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "NUMBER=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      # The tag image used to be built without labels, so the published image
+      # carried no org.opencontainers.image.revision / version / source.
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.version.outputs.NUMBER }}
 
       - uses: docker/build-push-action@v7
         with:
@@ -150,8 +171,10 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SOURCE_COMMIT=${{ github.sha }}
+            APP_VERSION=${{ steps.version.outputs.NUMBER }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
