@@ -13,6 +13,13 @@ import { esc, jobFailedLine, statusTransitionLine } from './log-format.js';
 
 const $ = (id) => document.getElementById(id);
 
+// The Google Fonts stylesheet is linked with media="print" so it never blocks
+// the first paint; switch it on here. (An inline onload handler would do the
+// same, but the Content-Security-Policy allows no inline script.)
+for (const link of document.querySelectorAll('link[data-async-style]')) {
+  link.media = 'all';
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Element References
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1043,6 +1050,10 @@ function initUi() {
   const runForge = () => {
     forgeSprite().catch((e) => logLine(`Error: ${esc(e.message)}`, 'failed'));
   };
+
+  // Enter in the name field must not submit (reload) the page. This used to be
+  // an inline onsubmit attribute, which the Content-Security-Policy blocks.
+  $('forge-form')?.addEventListener('submit', (e) => e.preventDefault());
 
   // Buttons
   els.forge.addEventListener('click', runForge);

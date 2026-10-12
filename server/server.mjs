@@ -16,7 +16,9 @@ import {
   normalizeSessionId,
   parseIntEnv,
   parseTrustProxy,
+  resolveContentSecurityPolicy,
   resolveWorkerIdPrefix,
+  securityHeaders,
   sessionIdProblem,
 } from "./guards.mjs";
 import {
@@ -112,6 +114,20 @@ const sseLimiter = createSseLimiter({
   maxClients: MAX_SSE_CLIENTS,
   maxPerIp: MAX_SSE_PER_IP,
 });
+
+// Sent on every response: X-Frame-Options DENY, nosniff, Referrer-Policy,
+// Permissions-Policy and a Content-Security-Policy the bundled page satisfies
+// (no inline script or style). CONTENT_SECURITY_POLICY replaces the policy;
+// "off" sends none (for a proxy that sets its own). Blank keeps the default.
+const SECURITY_HEADERS = securityHeaders(
+  resolveContentSecurityPolicy(process.env.CONTENT_SECURITY_POLICY),
+);
+
+function applySecurityHeaders(res) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(name, value);
+  }
+}
 
 // Stable worker ids make a restart an upsert instead of a second row against
 // the plan worker cap. Worker ids are a global primary key across ALL Spooled
@@ -429,11 +445,21 @@ function contentTypeFor(filePath) {
       return "image/x-icon";
     case ".json":
       return "application/json; charset=utf-8";
+    // Served with X-Content-Type-Options: nosniff, so say what these are.
+    case ".webp":
+      return "image/webp";
+    case ".webmanifest":
+      return "application/manifest+json; charset=utf-8";
+    case ".txt":
+      return "text/plain; charset=utf-8";
+    case ".xml":
+      return "application/xml; charset=utf-8";
     default:
       return "application/octet-stream";
   }
 }
 
+/** GET serves the file; HEAD answers the same status and headers, no body. */
 function serveStatic(req, res) {
   const url = new URL(
     req.url ?? "/",
@@ -442,7 +468,8 @@ function serveStatic(req, res) {
   const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
 
   const filePath = safeJoinPublic(pathname);
-  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+  const stat = existsSync(filePath) ? statSync(filePath) : null;
+  if (!stat || !stat.isFile()) {
     sendText(res, 404, "Not found");
     return;
   }
@@ -450,8 +477,13 @@ function serveStatic(req, res) {
   // Disable caching for the demo to avoid stale JS/CSS when we iterate quickly.
   res.writeHead(200, {
     "Content-Type": contentTypeFor(filePath),
+    "Content-Length": stat.size,
     "Cache-Control": "no-store",
   });
+  if (req.method === "HEAD") {
+    res.end();
+    return;
+  }
   createReadStream(filePath).pipe(res);
 }
 
@@ -1170,17 +1202,26 @@ function handleSse(req, res) {
     res.end(JSON.stringify({ error: slot.code, message: slot.message }));
     return;
   }
+  const sseHeaders = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    "X-Accel-Buffering": "no",
+  };
+  if (req.method === "HEAD") {
+    // A probe answers like GET (same status, same headers) but opens no
+    // stream: give the slot back and send no body (and no keep-alive, the
+    // connection is not a stream).
+    slot.release();
+    res.writeHead(200, sseHeaders);
+    res.end();
+    return;
+  }
   const sessionId = normalizeSessionId(
     url.searchParams.get("sessionId"),
     () => crypto.randomUUID(),
   );
 
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-  });
+  res.writeHead(200, { ...sseHeaders, Connection: "keep-alive" });
 
   // Register
   if (!sseClientsBySession.has(sessionId))
@@ -1438,8 +1479,12 @@ const server = http.createServer(async (req, res) => {
       req.url ?? "/",
       `http://${req.headers.host || "localhost"}`,
     );
+    applySecurityHeaders(res);
+    // HEAD is GET without a body (monitors, link checkers and load balancers
+    // probe with it); Node drops the body of a HEAD response by itself.
+    const isRead = method === "GET" || method === "HEAD";
 
-    if (method === "GET" && url.pathname === "/health") {
+    if (isRead && url.pathname === "/health") {
       // Healthy = the API answers AND the workers a Forge needs (frames,
       // assemble) are registered; otherwise 503 so orchestrators and
       // monitors see the app cannot do its job (the UI itself still serves).
@@ -1478,7 +1523,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (method === "GET" && url.pathname === "/api/events") {
+    if (isRead && url.pathname === "/api/events") {
       handleSse(req, res);
       return;
     }
@@ -1494,7 +1539,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Static UI
-    if (method === "GET") {
+    if (isRead) {
       serveStatic(req, res);
       return;
     }

@@ -23,7 +23,8 @@
 #   SPOOLED_BASE_URL        - Backend API URL
 #   SPOOLED_WS_URL          - WebSocket URL
 #   TRUST_PROXY, MAX_SSE_CLIENTS, MAX_SSE_PER_IP, WORKER_ID_PREFIX,
-#   WORKER_SHUTDOWN_TIMEOUT_MS - passed through; blank (unset) = the app default
+#   WORKER_SHUTDOWN_TIMEOUT_MS, CONTENT_SECURITY_POLICY - passed through;
+#     blank (unset) = the app default
 #   SOURCE_COMMIT / IMAGE_DIGEST - optional /health identity overrides only;
 #     leave unset so CI-baked image SOURCE_COMMIT is visible
 #
@@ -88,6 +89,10 @@ services:
       # Ms running jobs may finish after SIGTERM (default 20000; must stay under
       # stop_grace_period below).
       WORKER_SHUTDOWN_TIMEOUT_MS: ${WORKER_SHUTDOWN_TIMEOUT_MS:-}
+      # Content-Security-Policy: blank = the app default (this origin + Google
+      # Fonts); "off" sends none (a proxy in front sets its own); any other
+      # value replaces the policy.
+      CONTENT_SECURITY_POLICY: ${CONTENT_SECURITY_POLICY:-}
 
     # Docker stops a container after 10 s by default; the app drains running
     # jobs for up to 20 s on SIGTERM, so give it 30 s (as Kubernetes does).

@@ -67,6 +67,10 @@ services:
       - WORKER_ID_PREFIX=${WORKER_ID_PREFIX:-}
       # Ms running jobs may finish after SIGTERM (default 20000).
       - WORKER_SHUTDOWN_TIMEOUT_MS=${WORKER_SHUTDOWN_TIMEOUT_MS:-}
+      # Content-Security-Policy: blank = the app default (this origin + Google
+      # Fonts); "off" sends none (a proxy in front sets its own); any other
+      # value replaces the policy.
+      - CONTENT_SECURITY_POLICY=${CONTENT_SECURITY_POLICY:-}
 
     restart: unless-stopped
 

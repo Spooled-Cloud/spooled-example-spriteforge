@@ -11,11 +11,10 @@ metadata:
     # SSE needs long read timeouts
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      add_header X-Frame-Options "SAMEORIGIN" always;
-      add_header X-Content-Type-Options "nosniff" always;
-      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-      add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    # Security headers (X-Frame-Options DENY, nosniff, Referrer-Policy,
+    # Permissions-Policy, Content-Security-Policy) come from the app itself on
+    # every response. Do not add them here: the ingress would send a second,
+    # conflicting copy (this file used to add X-Frame-Options SAMEORIGIN).
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: nginx

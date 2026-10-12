@@ -64,6 +64,7 @@ chore: update dependencies
 - Single quotes for strings
 - No semicolons (we use the no-semi style)
 - Descriptive variable names
+- No inline `<script>`, `style="..."` attributes or `on...=` handlers in `public/`: the server's Content-Security-Policy blocks them (`npm test` checks). Add listeners in `public/app.js` instead.
 
 ### Testing Your Changes
 

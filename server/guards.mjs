@@ -166,3 +166,57 @@ export function createSseLimiter({ maxClients = 500, maxPerIp = 10 } = {}) {
     },
   };
 }
+
+/**
+ * Content-Security-Policy for the bundled UI (public/). The page runs one
+ * module script from this origin, one stylesheet from this origin plus the
+ * Google Fonts stylesheet and font files, and talks only to this server
+ * (fetch + EventSource); it has no inline script, inline style or iframe.
+ * Everything else is closed, and no other site may frame it.
+ */
+export const DEFAULT_CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+/**
+ * CONTENT_SECURITY_POLICY: blank / unset keeps the default policy; off, false,
+ * 0, no or none (any case) send no CSP header (for a proxy that sets its own);
+ * any other value replaces the policy. A value Node cannot send as a header
+ * (control or non-ASCII characters) falls back to the default instead of
+ * failing every request. Returns the policy string, or null for "no header".
+ */
+export function resolveContentSecurityPolicy(raw) {
+  if (raw == null) return DEFAULT_CONTENT_SECURITY_POLICY;
+  const v = String(raw).trim();
+  if (!v) return DEFAULT_CONTENT_SECURITY_POLICY;
+  if (["off", "false", "0", "no", "none"].includes(v.toLowerCase())) {
+    return null;
+  }
+  return /^[\x20-\x7e]+$/.test(v) ? v : DEFAULT_CONTENT_SECURITY_POLICY;
+}
+
+/**
+ * Headers every response carries: no framing (clickjacking), no MIME
+ * sniffing, a trimmed Referer, and the browser features the page never uses
+ * switched off. `csp` is the policy string or null (no Content-Security-Policy).
+ */
+export function securityHeaders(csp = DEFAULT_CONTENT_SECURITY_POLICY) {
+  const headers = {
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy":
+      "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  };
+  if (csp) headers["Content-Security-Policy"] = csp;
+  return headers;
+}

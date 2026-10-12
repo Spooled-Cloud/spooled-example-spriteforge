@@ -20,6 +20,7 @@ const APP_ENV_KEYS = [
   "MAX_SSE_PER_IP",
   "WORKER_ID_PREFIX",
   "WORKER_SHUTDOWN_TIMEOUT_MS",
+  "CONTENT_SECURITY_POLICY",
 ];
 
 let ipCounter = 0;
