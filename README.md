@@ -57,7 +57,7 @@ SpriteForge is a **real-time pixel art sprite generator** that demonstrates [Spo
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - A [Spooled Cloud](https://spooled.cloud) API key (or self-hosted Spooled)
 
 ### Plan requirements
@@ -388,7 +388,7 @@ curl http://localhost:3000/health
 
 ### SDK and Security Notes
 
-SpriteForge declares `@spooled/sdk` as `^1.4.0` in `package.json`; the committed `package-lock.json` records the exact SDK version reproduced by `npm ci`. Review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
+SpriteForge declares `@spooled/sdk` as `^1.4.1` in `package.json`; the committed `package-lock.json` records the exact SDK version reproduced by `npm ci`. Review and record both for each release, but do not force the SDK version to equal the SpriteForge application version. It uses `SpooledClient`, `SpooledWorker`, and WebSocket `SpooledRealtime`; workflows are created with `client.workflows.create()`, dependency results are read with `client.workflows.jobs.getDependencies()` and `client.jobs.get()`, and the public schedule uses `client.schedules`.
 
 When deploying publicly:
 - Use a **dedicated Spooled organization** for the demo.

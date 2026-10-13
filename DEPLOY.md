@@ -357,7 +357,7 @@ Release-facing documentation and image examples are additional review surfaces, 
 - `package.json` declares the SDK range SpriteForge is tested against.
 - `package-lock.json` records the exact SDK package resolved and reproduced by `npm ci`.
 
-At the current documented state, `package.json` declares `@spooled/sdk` as `^1.4.0` and `package-lock.json` resolves the SDK to exactly `1.4.0` (since SpriteForge `1.0.23`); `npm ci` reproduces that resolution. Do not go below `1.3.0`: it drains workers on `stop()`, retries acks, never retries plan-quota 429s and keeps the realtime JWT off the REST bearer. `1.4.0` adds that per-second rate-limit 429s no longer open the client's circuit breaker. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
+At the current documented state, `package.json` declares `@spooled/sdk` as `^1.4.1` and `package-lock.json` resolves the SDK to exactly `1.4.1` (since SpriteForge `1.0.25`; `1.4.1` raises the `@grpc/grpc-js` floor past GHSA-m9gg-hp2v-232j); `npm ci` reproduces that resolution. Do not go below `1.3.0`: it drains workers on `stop()`, retries acks, never retries plan-quota 429s and keeps the realtime JWT off the REST bearer. `1.4.0` adds that per-second rate-limit 429s no longer open the client's circuit breaker. The SDK version is **not** required to equal the SpriteForge application version, and a release must not update it merely to create numerical equality.
 
 ### CI and image publication model
 

@@ -1,6 +1,6 @@
 # SpriteForge example — Agent Knowledge Base
 
-Demo app **v1.0.24** using `@spooled/sdk` **^1.4.0** (lease fencing, draining `worker.stop()`, ack retries, quota 429s not retried). Live: `example.spooled.cloud`.
+Demo app **v1.0.25** using `@spooled/sdk` **^1.4.1** (lease fencing, draining `worker.stop()`, ack retries, quota 429s not retried). Live: `example.spooled.cloud`.
 
 Entry: `server/server.mjs` — `SpooledClient`, three `SpooledWorker` queues, workflows, schedules, realtime bridge. `/health` returns app version/commit/digest identity; CI bakes `SOURCE_COMMIT` into the image. **Prod compose must not default `SOURCE_COMMIT=unknown`** (clobbers bake — SF-13). Health check runs once at boot, then every 5m. Assemble requires each frame job `result` to be a non-array object with a `pixels` array (`typeof [] === "object"` used to assemble undefined frames — SF-14).
 
@@ -28,7 +28,7 @@ Visual: craft “pixel forge” with **both** dark and light themes elevated (wa
 
 Demo defaults (from `server/server.mjs` / `docker-compose.prod.yml`): queues `spriteforge-frames|assemble|public`; concurrency 8 / 2 / 1; public cron `0 * * * * *` UTC; forge workflow `maxRetries: 5`.
 
-See `DEPLOY.md` for deploy. **Do not go below SDK 1.3.0** (lease fencing from 1.0.39, see SF-02; drain/ack-retry/quota behaviour from 1.3.0). `package.json` declares `^1.4.0` (lock `1.4.0`); the lockfile holds the exact version. Needs a Starter plan or higher (README "Plan requirements"); SSE streams are capped (`MAX_SSE_CLIENTS` 500, `MAX_SSE_PER_IP` 30: shared NAT). Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.
+See `DEPLOY.md` for deploy. **Do not go below SDK 1.3.0** (lease fencing from 1.0.39, see SF-02; drain/ack-retry/quota behaviour from 1.3.0). `package.json` declares `^1.4.1` (lock `1.4.1`); the lockfile holds the exact version. Needs a Starter plan or higher (README "Plan requirements"); SSE streams are capped (`MAX_SSE_CLIENTS` 500, `MAX_SSE_PER_IP` 30: shared NAT). Existing public schedules are updated when cron/timezone/payload changes and recreated when target queue changes. Docker builds must keep local `.env` files out of the build context.
 
 ## Workers, health and config (server/)
 
