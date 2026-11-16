@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://spooled.cloud/logo.webp" alt="Spooled Logo" width="80">
+  <img src="https://spooled.cloud/logo.png" alt="Spooled Logo" width="80">
 </p>
 
 <h1 align="center">SpriteForge</h1>
